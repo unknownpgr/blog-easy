@@ -1,0 +1,1 @@
+.\EasyBlog\EasyBlog\bin\Debug\EasyBlog.exe
