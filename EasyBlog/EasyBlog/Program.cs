@@ -31,7 +31,7 @@ namespace EasyBlog
             Console.WriteLine("Listening for connections on {0}", url);
 
             // Start manager
-            System.Diagnostics.Process.Start(url + "/manager");
+            //System.Diagnostics.Process.Start(url + "manager/");
 
             // Handle requests
             Task listenTask = HandleIncomingConnections();
@@ -49,9 +49,11 @@ namespace EasyBlog
             {
                 // Will wait here until we hear from a connection
                 HttpListenerContext ctx = await listener.GetContextAsync();
+                ctx.Response.ContentType = "text/plain; charset=utf-8";
 
                 // Peel out the requests and response objects
                 HttpListenerRequest req = ctx.Request;
+                Console.WriteLine(req.ContentEncoding);
                 HttpListenerResponse res = ctx.Response;
 
                 // Print out some info about the request
@@ -73,15 +75,22 @@ namespace EasyBlog
                 try
                 {
                     string apiName = urlPath.Replace("/api/", "").Replace("/api", "").ToLower();
-                    Dictionary<string, string> query = req.QueryString.AllKeys.ToDictionary(t => t, t => req.QueryString[t]);
-
+                    Dictionary<string, string> query = req.QueryString.AllKeys.ToDictionary(t => t, key =>
+                    {
+                        string value = req.QueryString[key];
+                        return value; 
+                    });
                     string localPath = query.ContainsKey("path") ? ConvertPath(query["path"]) : "";
                     Console.WriteLine("API : " + apiName + "\t" + "PATH : " + localPath);
                     switch (apiName)
                     {
                         // List given directory
                         case "dir":
-                            res.SendData(Directory.GetFiles(localPath).Concat(Directory.GetDirectories(localPath)));
+                            List<string> items = new List<string>();
+                            DirectoryInfo di = new DirectoryInfo(localPath);
+                            foreach (FileInfo info in di.GetFiles()) items.Add(info.Name);
+                            foreach (DirectoryInfo info in di.GetDirectories()) items.Add(info.Name);
+                            res.SendData(items);
                             break;
 
                         // Real file from local
@@ -91,12 +100,13 @@ namespace EasyBlog
 
                         // Write file to local
                         case "write":
-                            File.WriteAllText(localPath, query["content"]);
+                            Console.WriteLine(query["content"]);
+                            File.WriteAllText(localPath, query["content"], Encoding.UTF8);
                             res.SendData();
                             break;
 
                         // Delete local file
-                        case "delete":
+                        case "remove":
                             File.Delete(localPath);
                             res.SendData();
                             break;
@@ -106,7 +116,8 @@ namespace EasyBlog
                             using (WebClient wc = new WebClient())
                             using (StreamReader s = new StreamReader(wc.OpenRead(query["path"])))
                             {
-                                res.SendData(s.ReadToEnd());
+                                string str = s.ReadToEnd();
+                                res.SendData(str);
                             }
                             break;
 
@@ -117,38 +128,55 @@ namespace EasyBlog
                 }
                 catch (Exception e)
                 {
-                    res.SendData(state: "error", message: e.Message);
+                    Console.WriteLine(e.Message + ":" + e.StackTrace);
+                    res.SendData(state: "error", message: e.Message + ":" + e.StackTrace);
                 }
             }
             // Manager default path
-            else if (urlPath == "/manager" || urlPath == "/manager/") res.SendFile(ConvertPath("/manager/index.html"));
+            else if (urlPath == "/manager/") res.SendFile(ConvertPath("/manager/index.html"));
             // Default path
-            else if (urlPath == "" || urlPath == "/") res.Redirect("/manager");
+            else if (urlPath == "" || urlPath == "/") res.Redirect("/manager/");
             // Send file
             else res.SendFile(ConvertPath(urlPath));
         }
 
         private static string ConvertPath(string path)
         {
-            if (path.ElementAt(1) != ':') path = "./" + path;
-
-            // Get full directory
-            path = Path.GetFullPath(path);
-
-            // Check if given directory is inside root directory
-            DirectoryInfo rootDir = new DirectoryInfo(root);
-            DirectoryInfo sub = new DirectoryInfo(path);
-            bool isInsideRoot = false;
-            while (sub.Parent != null)
+            try
             {
-                if (sub.Parent.FullName == rootDir.FullName)
+                // Not absolute path and not well-rooted path.
+                if (!path.StartsWith("./") && path[1] != ':')
                 {
-                    isInsideRoot = true;
-                    break;
+                    // When path starts with root
+                    if (path[0] == '/') path = "." + path;
+                    // When path starts with file name
+                    else path = "./" + path;
                 }
-                else sub = sub.Parent;
+                Console.WriteLine("Access to path : "+path);
+
+                // Get full directory
+                path = Path.GetFullPath(path);
+
+                // Check if given directory is inside root directory
+                DirectoryInfo rootDir = new DirectoryInfo(root);
+                DirectoryInfo sub = new DirectoryInfo(path);
+                bool isInsideRoot = false;
+                while (sub.Parent != null)
+                {
+                    if (sub.Parent.FullName == rootDir.FullName)
+                    {
+                        isInsideRoot = true;
+                        break;
+                    }
+                    else sub = sub.Parent;
+                }
+                if (!isInsideRoot) throw new Exception("Given path " + path + " is not in root directory.");
             }
-            if (!isInsideRoot) throw new Exception("Given path " + path + " is not in root directory.");
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return "";
+            }
 
             // Return path
             return path;
