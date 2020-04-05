@@ -1,3 +1,12 @@
 $(document).ready(() => {
-    // Add callback functions here
+    $('#change').click(() => {
+        read('./index.html')
+            .then(e => {
+                console.log(e)
+                alert(e)
+            })
+            .catch(e => {
+                alert(e)
+            })
+    })
 });

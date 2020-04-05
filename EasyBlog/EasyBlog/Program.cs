@@ -53,7 +53,6 @@ namespace EasyBlog
 
                 // Peel out the requests and response objects
                 HttpListenerRequest req = ctx.Request;
-                Console.WriteLine(req.ContentEncoding);
                 HttpListenerResponse res = ctx.Response;
 
                 // Print out some info about the request
@@ -78,7 +77,7 @@ namespace EasyBlog
                     Dictionary<string, string> query = req.QueryString.AllKeys.ToDictionary(t => t, key =>
                     {
                         string value = req.QueryString[key];
-                        return value; 
+                        return value;
                     });
                     string localPath = query.ContainsKey("path") ? ConvertPath(query["path"]) : "";
                     Console.WriteLine("API : " + apiName + "\t" + "PATH : " + localPath);
@@ -90,25 +89,20 @@ namespace EasyBlog
                             DirectoryInfo di = new DirectoryInfo(localPath);
                             foreach (FileInfo info in di.GetFiles()) items.Add(info.Name);
                             foreach (DirectoryInfo info in di.GetDirectories()) items.Add(info.Name);
-                            res.SendData(items);
-                            break;
-
-                        // Real file from local
-                        case "read":
-                            res.SendData(File.ReadAllLines(localPath));
+                            res.Response(items);
                             break;
 
                         // Write file to local
                         case "write":
                             Console.WriteLine(query["content"]);
                             File.WriteAllText(localPath, query["content"], Encoding.UTF8);
-                            res.SendData();
+                            res.Response();
                             break;
 
                         // Delete local file
                         case "remove":
                             File.Delete(localPath);
-                            res.SendData();
+                            res.Response();
                             break;
 
                         // Read url
@@ -117,19 +111,32 @@ namespace EasyBlog
                             using (StreamReader s = new StreamReader(wc.OpenRead(query["path"])))
                             {
                                 string str = s.ReadToEnd();
-                                res.SendData(str);
+                                res.Response(str);
                             }
                             break;
 
+                        // Create directory
+                        case "mkdir":
+                            Directory.CreateDirectory(localPath);
+                            res.Response();
+                            break;
+
+                        // Delete directory
+                        case "rmdir":
+                            Directory.Delete(localPath);
+                            res.Response();
+                            break;
+
+                        // Unregistered api
                         default:
-                            res.SendData(state: "error", message: "unregistered api call");
+                            res.Response(status: "error", message: "unregistered api call");
                             break;
                     }
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e.Message + ":" + e.StackTrace);
-                    res.SendData(state: "error", message: e.Message + ":" + e.StackTrace);
+                    res.Response(status: "error", message: e.Message + ":" + e.StackTrace);
                 }
             }
             // Manager default path
@@ -152,7 +159,7 @@ namespace EasyBlog
                     // When path starts with file name
                     else path = "./" + path;
                 }
-                Console.WriteLine("Access to path : "+path);
+                Console.WriteLine("Access to path : " + path);
 
                 // Get full directory
                 path = Path.GetFullPath(path);
@@ -181,24 +188,16 @@ namespace EasyBlog
             // Return path
             return path;
         }
-
-        private static async void SendString(HttpListenerResponse res, string str)
-        {
-            res.ContentType = "text/html";
-            byte[] buf = Encoding.UTF8.GetBytes(str);
-            await res.OutputStream.WriteAsync(buf, 0, buf.Length);
-            res.Close();
-        }
     }
 
     static class HttpResponseExtend
     {
-        public static async void SendData(this HttpListenerResponse res, object content = null, string state = "ok", string message = "")
+        public static async void Response(this HttpListenerResponse res, object content = null, string status = "ok", string message = "")
         {
             res.ContentType = "text/json";
 
             Dictionary<string, object> ret = new Dictionary<string, object>();
-            ret["state"] = state;
+            ret["status"] = status;
             ret["message"] = message;
             ret["content"] = content;
 
