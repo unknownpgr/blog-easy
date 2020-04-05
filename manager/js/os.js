@@ -2,7 +2,6 @@
 // We use the POST method instead of the GET because the GET querystring have length limit.
 // Also, by using POST we do not have to manually encode data.
 function post(url, params) {
-    console.log(params)
     return new Promise((resolve, reject) => $.post(url, params, resolve).fail(reject))
 }
 
@@ -80,10 +79,33 @@ async function copyDir(src, dst) {
     return await Promise.all(list)
 }
 
+// Recursivly remove file and directory.
+async function rmrf(path) {
+    return remove(path)
+        .catch(() => rmdir(path))
+        .catch(() => dir(path)
+            .then(files => {
+                // If fails, recursivly remove.
+                if (path.charAt(path.length - 1) != '/') path += '/';
+
+                // Remove all files and directories.
+                return Promise.all(files.map(file => {
+                    if (file['type'] == 'file') return remove(path + file['name']);
+                    else return rmrf(path + file['name']);
+                }))
+            })
+            // Then remove current path.
+            .then(() => rmdir(path))
+        )
+}
+
 // Convert relative path to absolute path
 function absolutePath(url) {
     var link = document.createElement("a");
     link.href = url;
     var path = link.pathname;
+    // By using html element, path is encoded.
+    // Therefore, it shuld be decoded.
+    path = decodeURIComponent(path)
     return path;
 }

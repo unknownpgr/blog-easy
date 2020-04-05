@@ -102,12 +102,6 @@ namespace EasyBlog
                             res.Response();
                             break;
 
-                        // Delete local file
-                        case "remove":
-                            File.Delete(localPath);
-                            res.Response();
-                            break;
-
                         // Read url
                         case "url":
                             using (WebClient wc = new WebClient())
@@ -116,6 +110,13 @@ namespace EasyBlog
                                 string str = s.ReadToEnd();
                                 res.Response(str);
                             }
+                            break;
+
+                        // Delete local file
+                        case "remove":
+                            //SetAttrNoraml(new DirectoryInfo(localPath));
+                            File.Delete(localPath);
+                            res.Response();
                             break;
 
                         // Create directory
@@ -148,6 +149,13 @@ namespace EasyBlog
             else if (urlPath == "" || urlPath == "/") res.Redirect("/manager/");
             // Send file
             else res.SendFile(ConvertPath(urlPath));
+        }
+
+        private static void SetAttrNoraml(DirectoryInfo dir)
+        {
+            foreach (DirectoryInfo subDir in dir.GetDirectories()) SetAttrNoraml(subDir);
+            foreach (var file in dir.GetFiles()) file.Attributes = FileAttributes.Normal;
+            dir.Attributes = FileAttributes.Normal;
         }
 
         private static string ConvertPath(string path)
@@ -194,7 +202,7 @@ namespace EasyBlog
             return path;
         }
 
-        private static Dictionary<string,string> ParseQuery(HttpListenerRequest req)
+        private static Dictionary<string, string> ParseQuery(HttpListenerRequest req)
         {
             // Parse GET data
             Dictionary<string, string> query = req.QueryString.AllKeys.ToDictionary(t => t, key =>
@@ -204,9 +212,9 @@ namespace EasyBlog
             });
 
             // Parset Post data
-            StreamReader getPostParam = new StreamReader(req.InputStream,true);
+            StreamReader getPostParam = new StreamReader(req.InputStream, true);
             string data = getPostParam.ReadToEnd();
-            foreach(string queryPair in data.Split('&'))
+            foreach (string queryPair in data.Split('&'))
             {
                 string[] split = queryPair.Split('=');
                 if (split.Length < 2)

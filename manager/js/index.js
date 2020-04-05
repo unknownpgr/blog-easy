@@ -10,11 +10,9 @@ async function clearSkin() {
     const fileList = await dir('/')
     const removeList = fileList
         .filter(file => preserveList.indexOf(file['name'].toLowerCase()) < 0)
-    return Promise.all(removeList.map(file => {
-        if (file['type'] == 'file') return remove(file['name'])
-        else return rmdir(file['name'])
-    }))
+    return Promise.all(removeList.map(file => rmrf('/' + file['name'])))
 }
 
 $(document).ready(async function () {
+    clearSkin()
 });
