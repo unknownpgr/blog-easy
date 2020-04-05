@@ -75,7 +75,7 @@ namespace EasyBlog
                 {
                     string apiName = urlPath.Replace("/api/", "").Replace("/api", "").ToLower();
                     Dictionary<string, string> query = ParseQuery(req);
-                    string localPath = query.ContainsKey("path") ? ConvertPath(query["path"]) : "";
+                    string localPath = query.ContainsKey("path") ? ConvertPath(query["path"]) : "NULL";
                     Console.WriteLine("API : " + apiName + "\t" + "PATH : " + localPath);
                     switch (apiName)
                     {
@@ -154,6 +154,8 @@ namespace EasyBlog
         {
             try
             {
+                if (path == "/") return root;
+
                 // Not absolute path and not well-rooted path.
                 if (!path.StartsWith("./") && path[1] != ':')
                 {

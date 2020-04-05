@@ -2,6 +2,7 @@
 // We use the POST method instead of the GET because the GET querystring have length limit.
 // Also, by using POST we do not have to manually encode data.
 function post(url, params) {
+    console.log(params)
     return new Promise((resolve, reject) => $.post(url, params, resolve).fail(reject))
 }
 
