@@ -1,4 +1,4 @@
-async function clearSkin() {
+async function clearRoot() {
     const preserveFile = 'preserve.txt'
     const preserveStr = await read('/' + preserveFile)
     const preserveList = preserveStr
@@ -14,5 +14,5 @@ async function clearSkin() {
 }
 
 $(document).ready(async function () {
-    clearSkin()
+    clearRoot()
 });

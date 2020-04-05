@@ -81,22 +81,19 @@ async function copyDir(src, dst) {
 
 // Recursivly remove file and directory.
 async function rmrf(path) {
-    return remove(path)
-        .catch(() => rmdir(path))
-        .catch(() => dir(path)
-            .then(files => {
-                // If fails, recursivly remove.
-                if (path.charAt(path.length - 1) != '/') path += '/';
-
-                // Remove all files and directories.
-                return Promise.all(files.map(file => {
-                    if (file['type'] == 'file') return remove(path + file['name']);
-                    else return rmrf(path + file['name']);
-                }))
-            })
-            // Then remove current path.
-            .then(() => rmdir(path))
-        )
+    // Try to remove as file
+    try { return await remove(path) }
+    catch {
+        // Try to remove as directory
+        try { return await rmdir(path) }
+        catch {
+            // Recursivly remove
+            const files = await dir(path);
+            if (path.charAt(path.length - 1) != '/') path += '/';
+            await Promise.all(files.map(file => rmrf(path + file['name'])));
+            return await rmdir(path);
+        }
+    }
 }
 
 // Convert relative path to absolute path
@@ -104,7 +101,7 @@ function absolutePath(url) {
     var link = document.createElement("a");
     link.href = url;
     var path = link.pathname;
-    // By using html element, path is encoded.
+    // Because it uses html element, path is encoded.
     // Therefore, it shuld be decoded.
     path = decodeURIComponent(path)
     return path;
