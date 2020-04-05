@@ -55,10 +55,27 @@ function rmdir(path) {
     return api('rmdir', path);
 }
 
-// Copy directory
+// Copy file
 async function copy(src, dst) {
     const data = await read(src);
     return await write(dst, data);
+}
+
+// Copy directory
+async function copyDir(src, dst) {
+    await mkdir(dst)
+    const files = dir(src)
+    if (src.charAt(src.length - 1) != '/') src += '/'
+    if (dst.charAt(dst.length - 1) != '/') dst += '/'
+    var list = files.map(file => read(src + file)
+        .then(() => {
+            // We can read it. therefore it is a file. move to destination directory.
+            return write(dst + file)
+        }).catch(() => {
+            // We cannot read it. therefore it is a directory. recursivly copy.
+            return copyDir(src + file, dst + file)
+        }))
+    return Promise.all(list)
 }
 
 // Convert relative path to absolute path

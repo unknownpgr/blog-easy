@@ -94,7 +94,6 @@ namespace EasyBlog
 
                         // Write file to local
                         case "write":
-                            Console.WriteLine(query["content"]);
                             File.WriteAllText(localPath, query["content"], Encoding.UTF8);
                             res.Response();
                             break;

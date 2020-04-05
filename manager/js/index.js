@@ -1,5 +1,5 @@
 $(document).ready(() => {
-    copy('./index.html', '/index.html')
+    mkdir('/test/test/test')
         .then(e => {
             console.log(e)
             alert(e)
