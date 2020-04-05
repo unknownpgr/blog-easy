@@ -74,21 +74,25 @@ namespace EasyBlog
                 try
                 {
                     string apiName = urlPath.Replace("/api/", "").Replace("/api", "").ToLower();
-                    Dictionary<string, string> query = req.QueryString.AllKeys.ToDictionary(t => t, key =>
-                    {
-                        string value = req.QueryString[key];
-                        return value;
-                    });
+                    Dictionary<string, string> query = ParseQuery(req);
                     string localPath = query.ContainsKey("path") ? ConvertPath(query["path"]) : "";
                     Console.WriteLine("API : " + apiName + "\t" + "PATH : " + localPath);
                     switch (apiName)
                     {
                         // List given directory
                         case "dir":
-                            List<string> items = new List<string>();
+                            List<Dictionary<string, string>> items = new List<Dictionary<string, string>>();
                             DirectoryInfo di = new DirectoryInfo(localPath);
-                            foreach (FileInfo info in di.GetFiles()) items.Add(info.Name);
-                            foreach (DirectoryInfo info in di.GetDirectories()) items.Add(info.Name);
+                            foreach (FileInfo info in di.GetFiles()) items.Add(new Dictionary<string, string>()
+                            {
+                                ["name"] = info.Name,
+                                ["type"] = "file"
+                            });
+                            foreach (DirectoryInfo info in di.GetDirectories()) items.Add(new Dictionary<string, string>()
+                            {
+                                ["name"] = info.Name,
+                                ["type"] = "directory"
+                            });
                             res.Response(items);
                             break;
 
@@ -186,6 +190,33 @@ namespace EasyBlog
 
             // Return path
             return path;
+        }
+
+        private static Dictionary<string,string> ParseQuery(HttpListenerRequest req)
+        {
+            // Parse GET data
+            Dictionary<string, string> query = req.QueryString.AllKeys.ToDictionary(t => t, key =>
+            {
+                string value = req.QueryString[key];
+                return value;
+            });
+
+            // Parset Post data
+            StreamReader getPostParam = new StreamReader(req.InputStream,true);
+            string data = getPostParam.ReadToEnd();
+            foreach(string queryPair in data.Split('&'))
+            {
+                string[] split = queryPair.Split('=');
+                if (split.Length < 2)
+                {
+                    Console.WriteLine(queryPair);
+                    continue;
+                }
+                string key = WebUtility.UrlDecode(split[0]);
+                string value = WebUtility.UrlDecode(split[1]);
+                query[key] = value;
+            }
+            return query;
         }
     }
 

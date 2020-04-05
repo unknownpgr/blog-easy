@@ -1,18 +1,16 @@
-// Promise-fied ajax function
-function ajax(url) {
-    return new Promise((resolve, reject) => {
-        $.ajax(url, {
-            success: resolve,
-            error: reject
-        });
-    });
+// Promise-fied jquery post function.
+// We use the POST method instead of the GET because the GET querystring have length limit.
+// Also, by using POST we do not have to manually encode data.
+function post(url, params) {
+    return new Promise((resolve, reject) => $.post(url, params, resolve).fail(reject))
 }
 
 // Abstract api function
 async function api(apiName, path, content = '') {
-    const res = await ajax('/api/' + apiName
-        + '?path=' + encodeURIComponent(absolutePath(path))
-        + '&content=' + encodeURIComponent(content));
+    const res = await post('/api/' + apiName, {
+        'path': absolutePath(path),
+        'content': content
+    });
     if (res['status'] == 'error') throw new Error(res['message']);
     else return res['content'];
 }
@@ -25,9 +23,7 @@ function dir(path) {
 // Read file from given path
 function read(path) {
     // Use XHR instead of api.
-    return new Promise((resolve, reject) => {
-        $.get(path, resolve);
-    });
+    return new Promise((resolve, reject) => $.get(path, resolve).fail(reject));
 }
 
 // Write file to given path
@@ -63,19 +59,24 @@ async function copy(src, dst) {
 
 // Copy directory
 async function copyDir(src, dst) {
+    // Make destination directory
     await mkdir(dst)
-    const files = dir(src)
+
+    // Get file list
+    const files = await dir(src)
+
+    // Copy file
     if (src.charAt(src.length - 1) != '/') src += '/'
     if (dst.charAt(dst.length - 1) != '/') dst += '/'
-    var list = files.map(file => read(src + file)
-        .then(() => {
-            // We can read it. therefore it is a file. move to destination directory.
-            return write(dst + file)
-        }).catch(() => {
-            // We cannot read it. therefore it is a directory. recursivly copy.
-            return copyDir(src + file, dst + file)
-        }))
-    return Promise.all(list)
+    var list = files.map(async function (file) {
+        const fileName = file['name']
+        // If given element is file, just copy it.
+        if (file['type'] == 'file') return await copy(src + fileName, dst + fileName)
+        // Else, recursivly copy.
+        else return await copyDir(src + fileName, dst + fileName)
+    })
+    // Return the promise.
+    return await Promise.all(list)
 }
 
 // Convert relative path to absolute path

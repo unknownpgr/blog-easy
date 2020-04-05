@@ -1,10 +1,7 @@
 $(document).ready(() => {
-    mkdir('/test/test/test')
+    copyDir('/manager', '/test/test/test')
         .then(e => {
             console.log(e)
-            alert(e)
-        })
-        .catch(e => {
             alert(e)
         })
 });
