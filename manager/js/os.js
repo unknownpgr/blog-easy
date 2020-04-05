@@ -57,7 +57,7 @@ function rmdir(path) {
 
 // Copy directory
 async function copy(src, dst) {
-    const data = await api('read', src);
+    const data = await read(src);
     return await write(dst, data);
 }
 

@@ -1,12 +1,10 @@
 $(document).ready(() => {
-    $('#change').click(() => {
-        read('./index.html')
-            .then(e => {
-                console.log(e)
-                alert(e)
-            })
-            .catch(e => {
-                alert(e)
-            })
-    })
+    copy('./index.html', '/index.html')
+        .then(e => {
+            console.log(e)
+            alert(e)
+        })
+        .catch(e => {
+            alert(e)
+        })
 });
