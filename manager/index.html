@@ -4,15 +4,29 @@
     <!-- This charset tag is essential for utf-8 character. -->
     <meta charset="UTF-8">
     <title>Blog manager</title>
-    <script src="./js/jquery-3.4.1.min.js"></script>
-    <script src="./js/os.js"></script>
-    <script src="./js/index.js"></script>
+    <script src="./js/index.js" type="module"></script>
     <style>
     </style>
 </head>
 
 <body>
-
+    <div>Blog Skin Select</div>
+    <div id="skinList"></div>
+    <br>
+    <div>Write a new Post</div>
+    <div>
+        <div>Title</div>
+        <input id="postTitle" type="text">
+    </div>
+    <div>
+        <div>Content</div>
+        <textarea id="postContent" cols="30" rows="10"></textarea>
+    </div>
+    <div>
+        <div>Tags</div>
+        <input id="postTags" type="text">
+    </div>
+    <button id="postWrite">Write</button>
 </body>
 
 </html>

@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.329
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyBlog", "EasyBlog\EasyBlog.csproj", "{26C9509E-1A66-4A82-935F-84608CB37983}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "EasyBlog\Server.csproj", "{26C9509E-1A66-4A82-935F-84608CB37983}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

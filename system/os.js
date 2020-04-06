@@ -1,3 +1,5 @@
+import './jquery-3.4.1.min.js'
+
 // Promise-fied jquery post function.
 // We use the POST method instead of the GET because the GET querystring have length limit.
 // Also, by using POST we do not have to manually encode data.
@@ -8,16 +10,22 @@ function post(url, params) {
 // Abstract api function
 async function api(apiName, path, content = '') {
     const res = await post('/api/' + apiName, {
-        'path': absolutePath(path),
+        'path': Path.absolute(path),
         'content': content
     });
-    if (res['status'] == 'error') throw new Error(res['message']);
-    else return res['content'];
+    console.log(res)
+    if (res.status == 'error') throw new Error(res.message);
+    else return res.content;
 }
 
 // List directory of given path
-function dir(path) {
-    return api('dir', path);
+async function dir(path) {
+    const files = await api('dir', path);
+    return files.map(file => {
+        file.isFile = file.type == 'file';
+        file.isDirectory = !file.isFile;
+        return file
+    });
 }
 
 // Read file from given path
@@ -28,7 +36,7 @@ function read(path) {
 
 // Write file to given path
 function write(path, content) {
-    return api('write', path, content);
+    return api('write', path, content + '');
 }
 
 // Read url from given path
@@ -66,14 +74,13 @@ async function copyDir(src, dst) {
     const files = await dir(src)
 
     // Copy file
-    if (src.charAt(src.length - 1) != '/') src += '/'
-    if (dst.charAt(dst.length - 1) != '/') dst += '/'
     var list = files.map(async function (file) {
-        const fileName = file['name']
+        const srcPath = Path.join(src, file.name)
+        const dstPath = Path.join(dst, file.name)
         // If given element is file, just copy it.
-        if (file['type'] == 'file') return await copy(src + fileName, dst + fileName)
+        if (file.isFile) return await copy(srcPath, dstPath)
         // Else, recursivly copy.
-        else return await copyDir(src + fileName, dst + fileName)
+        else return await copyDir(srcPath, dstPath)
     })
     // Return the promise.
     return await Promise.all(list)
@@ -89,20 +96,31 @@ async function rmrf(path) {
         catch {
             // Recursivly remove
             const files = await dir(path);
-            if (path.charAt(path.length - 1) != '/') path += '/';
-            await Promise.all(files.map(file => rmrf(path + file['name'])));
+            await Promise.all(files.map(file => rmrf(Path.join(path, file.name))));
             return await rmdir(path);
         }
     }
 }
 
-// Convert relative path to absolute path
-function absolutePath(url) {
-    var link = document.createElement("a");
-    link.href = url;
-    var path = link.pathname;
-    // Because it uses html element, path is encoded.
-    // Therefore, it shuld be decoded.
-    path = decodeURIComponent(path)
-    return path;
+// Javascript path managing tool
+const Path = {
+    // Convert relative path to absolute path
+    absolute: function (url) {
+        var link = document.createElement("a");
+        link.href = url;
+        var path = link.pathname;
+        // Because it uses html element, path is encoded.
+        // Therefore, it shuld be decoded.
+        path = decodeURIComponent(path)
+        return path;
+    },
+
+    // Join given paths. do not care relative path
+    join: function () {
+        var args = []
+        for (var i = 0; i < arguments.length; i++)args.push(arguments[i])
+        return args.join('/').replace(/\/+/g, '/')
+    }
 }
+
+export { dir, read, write, url, remove, mkdir, rmdir, copy, copyDir, rmrf, Path }

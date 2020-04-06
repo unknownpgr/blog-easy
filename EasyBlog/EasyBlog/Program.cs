@@ -98,6 +98,10 @@ namespace EasyBlog
 
                         // Write file to local
                         case "write":
+                            foreach(string key in query.Keys)
+                            {
+                                Console.WriteLine(key);
+                            }
                             File.WriteAllText(localPath, query["content"], Encoding.UTF8);
                             res.Response();
                             break;
@@ -256,8 +260,42 @@ namespace EasyBlog
             }
             else
             {
-                long length = new FileInfo(path).Length;
-                res.ContentType = "text/html";
+                FileInfo fi = new FileInfo(path);
+                long length =fi.Length;
+
+                switch (fi.Extension.Replace(".",""))
+                {
+                    case "html":
+                        res.ContentType = "text/html";
+                        break;
+
+                    case "txt":
+                        res.ContentType = "text/plain";
+                        break;
+
+                    case "js":
+                        res.ContentType = "text/javascript";
+                        break;
+
+                    case "json":
+                        res.ContentType = "application/json";
+                        break;
+
+                    case "jpg":
+                        res.ContentType = "image/jpg";
+                        break;
+
+                    case "jpeg":
+                        res.ContentType = "image/jpeg";
+                        break;
+
+                    case "png":
+                        res.ContentType = "image/png";
+                        break;
+
+                    default: res.ContentType = "application/*";
+                        break;
+                }
                 res.ContentEncoding = Encoding.UTF8;
                 res.ContentLength64 = length;
                 using (FileStream fs = new FileStream(path, FileMode.Open))
