@@ -124,4 +124,6 @@ Server Layer에서 제공하는 기능을 바탕으로, 필요한 모든 기능�
 - 모듈 작성을 위한 CommonJS, AMD, ES6 방법 등 공부
 - 추후 적용을 위하여 Webpack, Babel등 Bundler 공부
 - 자바스크립트 파일들 ES6로 리팩토링
-- Renderer 테스트를 위한 포스트 작성 구현 중
+- Renderer 테스트를 위한 포스트 작성 구현
+- 임시 default skin과 
+- Renderer 구현 시작

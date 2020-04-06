@@ -1,5 +1,40 @@
 import './jquery-3.4.1.min.js'
 
+//================================================================
+//  Server independent
+//================================================================
+
+// Read file from given path
+function read(path) {
+    // Use XHR instead of api.
+    return new Promise((resolve, reject) => $.get(path, resolve).fail(reject));
+}
+
+// Javascript path managing tool
+const Path = {
+    // Convert relative path to absolute path
+    absolute: function (url) {
+        var link = document.createElement("a");
+        link.href = url;
+        var path = link.pathname;
+        // Because it uses html element, path is encoded.
+        // Therefore, it shuld be decoded.
+        path = decodeURIComponent(path)
+        return path;
+    },
+
+    // Join given paths. do not care relative path
+    join: function () {
+        var args = []
+        for (var i = 0; i < arguments.length; i++)args.push(arguments[i])
+        return args.join('/').replace(/\/+/g, '/')
+    }
+}
+
+//================================================================
+//  Server dependent private
+//================================================================
+
 // Promise-fied jquery post function.
 // We use the POST method instead of the GET because the GET querystring have length limit.
 // Also, by using POST we do not have to manually encode data.
@@ -18,20 +53,19 @@ async function api(apiName, path, content = '') {
     else return res.content;
 }
 
+//================================================================
+//  Server dependent public
+//================================================================
+
 // List directory of given path
 async function dir(path) {
     const files = await api('dir', path);
     return files.map(file => {
         file.isFile = file.type == 'file';
         file.isDirectory = !file.isFile;
+        file.fullPath = Path.join(path, file.name)
         return file
     });
-}
-
-// Read file from given path
-function read(path) {
-    // Use XHR instead of api.
-    return new Promise((resolve, reject) => $.get(path, resolve).fail(reject));
 }
 
 // Write file to given path
@@ -75,12 +109,11 @@ async function copyDir(src, dst) {
 
     // Copy file
     var list = files.map(async function (file) {
-        const srcPath = Path.join(src, file.name)
         const dstPath = Path.join(dst, file.name)
         // If given element is file, just copy it.
-        if (file.isFile) return await copy(srcPath, dstPath)
+        if (file.isFile) return await copy(file.fullPath, dstPath)
         // Else, recursivly copy.
-        else return await copyDir(srcPath, dstPath)
+        else return await copyDir(file.fullPath, dstPath)
     })
     // Return the promise.
     return await Promise.all(list)
@@ -96,31 +129,11 @@ async function rmrf(path) {
         catch {
             // Recursivly remove
             const files = await dir(path);
-            await Promise.all(files.map(file => rmrf(Path.join(path, file.name))));
+            await Promise.all(files.map(file => rmrf(file.fullPath)));
             return await rmdir(path);
         }
     }
 }
 
-// Javascript path managing tool
-const Path = {
-    // Convert relative path to absolute path
-    absolute: function (url) {
-        var link = document.createElement("a");
-        link.href = url;
-        var path = link.pathname;
-        // Because it uses html element, path is encoded.
-        // Therefore, it shuld be decoded.
-        path = decodeURIComponent(path)
-        return path;
-    },
-
-    // Join given paths. do not care relative path
-    join: function () {
-        var args = []
-        for (var i = 0; i < arguments.length; i++)args.push(arguments[i])
-        return args.join('/').replace(/\/+/g, '/')
-    }
-}
-
+// Export all
 export { dir, read, write, url, remove, mkdir, rmdir, copy, copyDir, rmrf, Path }

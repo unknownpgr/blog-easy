@@ -3,11 +3,3 @@
 .gitattributes
 .git
 README.md
-
-// Blog
-EasyBlog
-manager
-skins
-posts
-Start.bat
-system
