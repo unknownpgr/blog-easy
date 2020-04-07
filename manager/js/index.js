@@ -6,6 +6,10 @@ $(document).ready(async function () {
 
     const dirfy = str => str.trim().toLowerCase()
 
+    //================================================================
+    //  Function definition
+    //================================================================
+
     async function clearRoot() {
         const preserveFile = 'preserve.txt'
         const preserveStr = await read('/' + preserveFile)
@@ -33,9 +37,9 @@ $(document).ready(async function () {
         return Promise.all(removeList.map(file => rmrf('/' + file.name)))
     }
 
-    function writeMeta(directory, title, tags) {
+    function writeMeta(directory, title, tags, date) {
         var path = Path.join(directory, 'meta.json')
-        var meta = { title: title, date: new Date(), tags: tags, path: path }
+        var meta = { title: title, date: date ? date : new Date(), tags: tags, path: directory }
         meta = JSON.stringify(meta)
         write(path, meta)
     }
@@ -43,8 +47,8 @@ $(document).ready(async function () {
     async function writePost(title, content, tags) {
         const dirName = title
             .toLowerCase()
-            .replace(/[^a-z]+/g, '_')
-            .replace(/(^[^a-z]|[^a-z]$)/g, '')
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/(^[^a-z0-9]|[^a-z0-9]$)/g, '')
         var directory = Path.join('/post', dirName)
 
         var postExists = false
@@ -59,6 +63,10 @@ $(document).ready(async function () {
         return Promise.all([writeMeta(directory, title, tags), write(contentFile, content)])
     }
 
+    //================================================================
+    //  Show skin list
+    //================================================================
+
     // Get skin list
     var skinListTag = $('#skinList')
     skinListTag.html('Loading...')
@@ -71,6 +79,10 @@ $(document).ready(async function () {
     }).catch((e) => {
         skinListTag.text('Error occered while loading skin list.')
     })
+
+    //================================================================
+    //  Post write callback
+    //================================================================
 
     // Add post write callback
     $('#postWrite').click(() => {
@@ -86,25 +98,74 @@ $(document).ready(async function () {
             })
     })
 
+    //================================================================
+    //  Post sync
+    //================================================================
+
+    // List of post directories for further use.
+    var posts = (await dir('/post')).filter(file => file.isDirectory)
+
     // Sync post
     var blogConfig = await config('/system/config.json')
-    blogConfig.posts = (await Promise.all((await dir('/post'))              // List all item in /post
-        .filter(file => file.isDirectory)                                   // Get directories
-        .map(async post => await read(Path.join(post.path, 'meta.json'))))) // Get meta file
-        .sort((a, b) => {                                                   // Sort by date
+
+    // Update post list and tag list.
+    var tags = []
+
+    // Sort posts and update tags
+    posts = (await Promise.all(posts
+        // Get list meta files
+        .map(async post => {
+
+            // Read meta file
+            var metaFile = await read(Path.join(post.path, 'meta.json'))
+
+            // Update tag list
+            metaFile.tags
+                .split(',')
+                .forEach(e => tags.push(e))
+
+            // Update meta file(optional)
+            // writeMeta(post.path, metaFile.title, metaFile.tags, metaFile.date)
+            // var metaFile = await read(Path.join(post.path, 'meta.json'))
+
+            return metaFile
+        })))
+        // Sort by date
+        .sort((a, b) => {
             if (a.date > b.date) return -1
             if (b.date > a.date) return 1
             return 0
         })
-    blogConfig.update()
+
+    // Remove duplicated tags
+    blogConfig.tags = []
+    tags.forEach(tmpTagList => {
+        if (blogConfig.tags.indexOf(tmpTagList) < 0) blogConfig.tags.push(tmpTagList)
+    })
+
+    // Write to file
+    await blogConfig.update()
 
     // Update post time list for client use.
-    const listCount = 10;
-    for (var i = 0; i < blogConfig.posts.length; i += listCount) {
+    const listCount = blogConfig.POST_LIST_COUNT;
+    for (var i = 0; i < posts.length; i += listCount) {
         var currentList = []
-        for (var j = i; j < i + listCount && j < blogConfig.posts.length; j++) {
-            currentList.push(blogConfig.posts[j])
+        for (var j = i; j < i + listCount && j < posts.length; j++) {
+            currentList.push(posts[j])
         }
-        write(`/post/{posts_${i}_${i + listCount}}`, JSON.stringify(currentList))
+        write(`/post/posts_${i}_${i + listCount}.json`, JSON.stringify(currentList))
+    }
+
+    // Update post tag list for client use.
+    var tagDict = {}
+    blogConfig.tags.forEach(tag => tagDict[tag] = [])
+    posts.forEach(post => {
+        post.tags.split(',').forEach(tag => tagDict[tag].push(post))
+    })
+
+    write('/post/posts_tags.json', JSON.stringify(blogConfig.tags))
+
+    for (var tag in tagDict) {
+        write(`/post/posts_tag_${tag}.json`, JSON.stringify(tagDict[tag]))
     }
 });
