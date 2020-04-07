@@ -1,4 +1,29 @@
-{
-    "title": "GITHUB BLOG TEST VERSION",
-    "PostIndex": 0
+﻿{
+    "title": "GITHUB BLOG",
+    "posts": [
+        {
+            "title": "the last",
+            "date": "2020-04-06T15:24:17.268Z",
+            "tags": "",
+            "path": "the_last"
+        },
+        {
+            "title": "ThiS! is! TEST!!!",
+            "date": "2020-04-06T13:47:41.146Z",
+            "tags": "tsa",
+            "path": "this_is_test"
+        },
+        {
+            "title": "test",
+            "date": "2020-04-06T13:43:49.796Z",
+            "tags": "",
+            "path": "test"
+        },
+        {
+            "title": "test post 2",
+            "date": "2020-04-06T13:38:50.177Z",
+            "tags": "tags",
+            "path": "test_post"
+        }
+    ]
 }

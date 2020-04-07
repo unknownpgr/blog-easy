@@ -63,7 +63,7 @@ async function dir(path) {
     return files.map(file => {
         file.isFile = file.type == 'file';
         file.isDirectory = !file.isFile;
-        file.fullPath = Path.join(path, file.name)
+        file.path = Path.join(path, file.name)
         return file
     });
 }
@@ -111,9 +111,9 @@ async function copyDir(src, dst) {
     var list = files.map(async function (file) {
         const dstPath = Path.join(dst, file.name)
         // If given element is file, just copy it.
-        if (file.isFile) return await copy(file.fullPath, dstPath)
+        if (file.isFile) return await copy(file.path, dstPath)
         // Else, recursivly copy.
-        else return await copyDir(file.fullPath, dstPath)
+        else return await copyDir(file.path, dstPath)
     })
     // Return the promise.
     return await Promise.all(list)
@@ -129,7 +129,7 @@ async function rmrf(path) {
         catch {
             // Recursivly remove
             const files = await dir(path);
-            await Promise.all(files.map(file => rmrf(file.fullPath)));
+            await Promise.all(files.map(file => rmrf(file.path)));
             return await rmdir(path);
         }
     }

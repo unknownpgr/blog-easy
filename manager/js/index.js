@@ -35,7 +35,7 @@ $(document).ready(async function () {
 
     function writeMeta(directory, title, tags) {
         var path = Path.join(directory, 'meta.json')
-        var meta = { title: title, date: new Date(), tags: tags }
+        var meta = { title: title, date: new Date(), tags: tags, path: path }
         meta = JSON.stringify(meta)
         write(path, meta)
     }
@@ -66,7 +66,7 @@ $(document).ready(async function () {
         var skinList = ''
         list
             .filter(file => file.isDirectory)
-            .forEach(file => skinList += `<li><a href="${Path.join(file.fullPath, 'index.html')}">${file.name}</a></li>`)
+            .forEach(file => skinList += `<li><a href="${Path.join(file.path, 'index.html')}">${file.name}</a></li>`)
         skinListTag.html(skinList)
     }).catch((e) => {
         skinListTag.text('Error occered while loading skin list.')
@@ -85,4 +85,16 @@ $(document).ready(async function () {
                 console.log(e)
             })
     })
+
+    // Sync post
+    var blogConfig = await config('/system/config.json')
+    blogConfig.posts = (await Promise.all((await dir('/post')).map(async (post) => await read(Path.join(post.path, 'meta.json')))))
+        .sort((a, b) => {
+            if (a.date > b.date) return -1
+            if (b.date > a.date) return 1
+            return 0
+        })
+    blogConfig.update()
+
+    // Update post list
 });

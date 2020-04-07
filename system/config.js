@@ -3,18 +3,19 @@ import { read, write } from "./os.js";
 // Get json manager with asynchronously
 export async function config(filePath) {
 
-    // Private json
+    // Json object
     var json = await read(filePath)
 
-    // Manager object
-    var manager = {}
-    for (var varName in json) {
-        // Register getter/setter
-        manager['set_' + varName] = async function (value) {
-            json[varName] = value
-            await write(filePath, JSON.stringify(json))
-        }
-        manager['get_' + varName] = () => json[varName]
+    // Refresh
+    json.update = async function () {
+        // Copy non-function element
+        var newJson = {}
+        for (var propertyName in json) if (!(json[propertyName] instanceof Function)) newJson[propertyName] = json[propertyName]
+        // Write new json
+        await write(filePath, JSON.stringify(newJson))
     }
-    return manager
+
+    // Key check
+    json.containsKey = key => key in json
+    return json
 }
