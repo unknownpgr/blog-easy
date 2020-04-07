@@ -131,3 +131,4 @@ Server Layer에서 제공하는 기능을 바탕으로, 필요한 모든 기능�
 #### 04 /07
 - 서버 구조 약간 수정
 - Post meta json => List json 변환 구현 완료
+- List json 파싱하여 시각화 구현 완료

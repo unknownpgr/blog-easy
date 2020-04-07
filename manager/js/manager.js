@@ -1,18 +1,34 @@
 import '../../system/jquery-3.4.1.min.js'
-import { dir, read, Path, write, mkdir } from '../../system/os.js'
+import { dir, read, Path, write, mkdir, each, remove } from '../../system/os.js'
 import { config } from '../../system/config.js';
 
 $(document).ready(async function () {
 
-    const dirfy = str => str.trim().toLowerCase()
+    //================================================================
+    //  Local server check
+    //================================================================
+
+    var serverConnected = false;
+    await dir('/')
+        .then(() => serverConnected = true)
+        .catch(() => serverConnected = false)
+    if (!serverConnected) {
+        alert('Server is not opened yet.')
+        return;
+    }
 
     //================================================================
     //  Function definition
     //================================================================
 
+    /**
+     * Remove all items in root directory except files listed in /system/preserve.txt
+     */
     async function clearRoot() {
-        const preserveFile = 'preserve.txt'
-        const preserveStr = await read('/' + preserveFile)
+        const dirfy = str => str.trim().toLowerCase()
+
+        const preserveFile = '/system/preserve.txt'
+        const preserveStr = await read(preserveFile)
         const preserveList = preserveStr
             .replace(/\r/g, '')                                         // \r\n => \n
             .split('\n')                                                // Line split
@@ -20,13 +36,12 @@ $(document).ready(async function () {
             .filter(line => !line.startsWith('//') && line.length > 0)  // Remove annotations
 
         [   // Default preserve files
-            'preserve.txt',
-            'server',
             'manager',
-            'skin',
             'post',
-            'start.bat',
-            'system'
+            'server',
+            'skin',
+            'system',
+            'start.bat'
         ]
             .map(dirfy)
             .forEach(x => preserveList.push(x))
@@ -37,18 +52,41 @@ $(document).ready(async function () {
         return Promise.all(removeList.map(file => rmrf('/' + file.name)))
     }
 
+    /**
+     * Make string to directory name by decapitalizing and removing special characters.
+     * @param {String} str 
+     */
+    function dirfy(str) {
+        return str
+            .toLowerCase()                              // Decapitalize
+            .replace(/[^a-z0-9]+/g, '_')                // Replace special characters to _
+            .replace(/(^[^a-z0-9]|[^a-z0-9]$)/g, '')    // Remove special characters at first and last.
+    }
+
+    /**
+     * Generate meta file in given directory
+     * @param {String} directory 
+     * @param {String} title 
+     * @param {String} tags 
+     * @param {String, Date} date 
+     */
     function writeMeta(directory, title, tags, date) {
         var path = Path.join(directory, 'meta.json')
         var meta = { title: title, date: date ? date : new Date(), tags: tags, path: directory }
         meta = JSON.stringify(meta)
-        write(path, meta)
+        return write(path, meta)
     }
 
+    /**
+     * Make a post with given data.
+     * @param {String} title 
+     * @param {String} content 
+     * @param {String} tags 
+     */
     async function writePost(title, content, tags) {
-        const dirName = title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '_')
-            .replace(/(^[^a-z0-9]|[^a-z0-9]$)/g, '')
+        if (!title || title.length == 0) throw new Error("Title cannot be empty.")
+
+        const dirName = dirfy(title)
         var directory = Path.join('/post', dirName)
 
         var postExists = false
@@ -59,8 +97,11 @@ $(document).ready(async function () {
         if (postExists) throw new Error('Post with same title already exists.')
 
         var contentFile = Path.join(directory, 'content.txt')
+
         await mkdir(directory)
-        return Promise.all([writeMeta(directory, title, tags), write(contentFile, content)])
+        return Promise.all([
+            writeMeta(directory, title, tags),
+            write(contentFile, content)])
     }
 
     //================================================================
@@ -68,85 +109,82 @@ $(document).ready(async function () {
     //================================================================
 
     // Get skin list
-    var skinListTag = $('#skinList')
-    skinListTag.html('Loading...')
-    dir('/skin').then(list => {
+    (async () => {
+        var skinListTag = $('#skinList')
+        skinListTag.html('Loading...')
         var skinList = ''
-        list
-            .filter(file => file.isDirectory)
-            .forEach(file => skinList += `<li><a href="${Path.join(file.path, 'index.html')}">${file.name}</a></li>`)
+        await each(dir('/skin'), async path => {
+            if (path.isDirectory) skinList += `<li><a href="${Path.join(path.path, 'index.html')}">${path.name}</a></li>`
+        })
         skinListTag.html(skinList)
-    }).catch((e) => {
-        skinListTag.text('Error occered while loading skin list.')
-    })
+    })()
 
     //================================================================
     //  Post write callback
     //================================================================
 
     // Add post write callback
-    $('#postWrite').click(() => {
+    $('#postWrite').click(async () => {
         var title = $('#postTitle').val()
         var content = $('#postContent').val()
         var tags = $('#postTags').val()
 
-        writePost(title, content, tags)
-            .then(() => alert('Posted'))
-            .catch(e => {
-                alert('Post failed: ' + e)
-                console.log(e)
-            })
+        try { await writePost(title, content, tags); }
+        catch (e) {
+            alert('Post failed: ' + e);
+            console.log(e);
+        }
     })
 
     //================================================================
     //  Post sync
     //================================================================
 
-    // List of post directories for further use.
-    var posts = (await dir('/post')).filter(file => file.isDirectory)
-
     // Sync post
-    var blogConfig = await config('/system/config.json')
+    const blogConfig = await config('/system/config.json')
 
-    // Update post list and tag list.
-    var tags = []
+    var posts = []
+    var tmpTagList = []
 
-    // Sort posts and update tags
-    posts = (await Promise.all(posts
-        // Get list meta files
-        .map(async post => {
+    await each(dir('/post'), async post => {
 
-            // Read meta file
-            var metaFile = await read(Path.join(post.path, 'meta.json'))
+        // Remove existing files
+        if (post.isFile) return remove(post.path)
 
-            // Update tag list
-            metaFile.tags
-                .split(',')
-                .forEach(e => tags.push(e))
+        // Read meta file
+        var meta = await read(Path.join(post.path, 'meta.json'))
 
-            // Update meta file(optional)
-            // writeMeta(post.path, metaFile.title, metaFile.tags, metaFile.date)
-            // var metaFile = await read(Path.join(post.path, 'meta.json'))
+        // We can modify list here because javascript is thread-safe.
 
-            return metaFile
-        })))
-        // Sort by date
-        .sort((a, b) => {
-            if (a.date > b.date) return -1
-            if (b.date > a.date) return 1
-            return 0
-        })
+        // Update post list
+        posts.push(meta)
+
+        // Update tag list. (Although js is thread-safe, we cannot check duplication here.)
+        meta.tags
+            .split(',')
+            .forEach(e => tmpTagList.push(e))
+
+        // Update meta file(optional)
+        await writeMeta(post.path, meta.title, meta.tags, meta.date)
+    })
+
+    // Sort posts by date
+    posts = posts.sort((a, b) => {
+        if (a.date > b.date) return -1
+        if (b.date > a.date) return 1
+        return 0
+    })
 
     // Remove duplicated tags
     blogConfig.tags = []
-    tags.forEach(tmpTagList => {
-        if (blogConfig.tags.indexOf(tmpTagList) < 0) blogConfig.tags.push(tmpTagList)
+    tmpTagList.forEach(t => {
+        if (blogConfig.tags.indexOf(t) < 0) blogConfig.tags.push(t)
     })
 
-    // Write to file
+    // Write config to file
     await blogConfig.update()
 
-    // Update post time list for client use.
+    // Update post list file to 
     const listCount = blogConfig.POST_LIST_COUNT;
     for (var i = 0; i < posts.length; i += listCount) {
         var currentList = []
@@ -156,15 +194,15 @@ $(document).ready(async function () {
         write(`/post/posts_${i}_${i + listCount}.json`, JSON.stringify(currentList))
     }
 
-    // Update post tag list for client use.
+    // Update list of tags
+    write('/post/posts_tags.json', JSON.stringify(blogConfig.tags))
+
+    // Update list of posts by tag
     var tagDict = {}
     blogConfig.tags.forEach(tag => tagDict[tag] = [])
     posts.forEach(post => {
-        post.tags.split(',').forEach(tag => tagDict[tag].push(post))
+        post.tags.split(',').forEach(tag => tagDict[tag.trim()].push(post))
     })
-
-    write('/post/posts_tags.json', JSON.stringify(blogConfig.tags))
-
     for (var tag in tagDict) {
         write(`/post/posts_tag_${tag}.json`, JSON.stringify(tagDict[tag]))
     }

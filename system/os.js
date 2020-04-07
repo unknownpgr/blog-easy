@@ -4,15 +4,35 @@ import './jquery-3.4.1.min.js'
 //  Server independent
 //================================================================
 
-// Read file from given path
+/**
+ * Read any type of file from given path
+ * @param {String} path 
+ */
 function read(path) {
     // Use XHR instead of api.
     return new Promise((resolve, reject) => $.get(path, resolve).fail(reject));
 }
 
-// Javascript path managing tool
+/**
+ * Apply asyncCallback for all element in return of listPromise.
+ * Return Promise.all
+ * @param {Promise} listPromise 
+ * @param {Function} asyncCallback 
+ */
+async function each(listPromise, asyncCallback) {
+    const list = await listPromise;
+    return await Promise.all(list.map(asyncCallback));
+}
+
+/**
+ * Javascript path managing tool
+ */
 const Path = {
-    // Convert relative path to absolute path
+
+    /**
+     * Convert relative path to absolute path
+     * @param {String} url 
+     */
     absolute: function (url) {
         var link = document.createElement("a");
         link.href = url;
@@ -23,7 +43,9 @@ const Path = {
         return path;
     },
 
-    // Join given paths. do not care relative path
+    /**
+     * Join given paths. do not care relative path
+     */
     join: function () {
         var args = []
         for (var i = 0; i < arguments.length; i++)args.push(arguments[i])
@@ -35,20 +57,29 @@ const Path = {
 //  Server dependent private
 //================================================================
 
-// Promise-fied jquery post function.
-// We use the POST method instead of the GET because the GET querystring have length limit.
-// Also, by using POST we do not have to manually encode data.
+/**
+ * Promise-fied jquery post function.
+ * We use the POST method instead of the GET because the GET querystring have length limit.
+ * Also, by using POST we do not have to manually encode data.
+ * @param {String} url 
+ * @param {*} params 
+ */
 function post(url, params) {
     return new Promise((resolve, reject) => $.post(url, params, resolve).fail(reject))
 }
 
-// Abstract api function
+/**
+ * Abstract api function
+ * @param {String} apiName 
+ * @param {String} path 
+ * @param {*} content 
+ */
 async function api(apiName, path, content = '') {
     const res = await post('/api/' + apiName, {
         'path': Path.absolute(path),
         'content': content
     });
-    console.log(res)
+    console.log(apiName, path, content, res)
     if (res.status == 'error') throw new Error(res.message);
     else return res.content;
 }
@@ -57,7 +88,10 @@ async function api(apiName, path, content = '') {
 //  Server dependent public
 //================================================================
 
-// List directory of given path
+/**
+ * List directory of given path
+ * @param {String} path 
+ */
 async function dir(path) {
     const files = await api('dir', path);
     return files.map(file => {
@@ -68,38 +102,64 @@ async function dir(path) {
     });
 }
 
-// Write file to given path
+/**
+ * Write file to given path.
+ * If file already exists, override.
+ * @param {String} path 
+ * @param {*} content 
+ */
 function write(path, content) {
     return api('write', path, content + '');
 }
 
-// Read url from given path
+
+/**
+ * Read url from given path
+ * @param {String} path 
+ */
 function url(path) {
     return api('url', path);
 }
 
-// Remove file
+/**
+ * Remove file
+ * @param {String} path 
+ */
 function remove(path) {
     return api('remove', path);
 }
 
-// Make directory
+/**
+ * Make directory
+ * @param {String} path 
+ */
 function mkdir(path) {
     return api('mkdir', path);
 }
 
-// Remove directory
+/**
+ * Remove directory
+ * @param {String} path 
+ */
 function rmdir(path) {
     return api('rmdir', path);
 }
 
-// Copy file
+/**
+ * Copy file
+ * @param {String} src 
+ * @param {String} dst 
+ */
 async function copy(src, dst) {
     const data = await read(src);
     return await write(dst, data);
 }
 
-// Copy directory
+/**
+ * Copy directory
+ * @param {String} src 
+ * @param {String} dst 
+ */
 async function copyDir(src, dst) {
     // Make destination directory
     await mkdir(dst)
@@ -119,7 +179,10 @@ async function copyDir(src, dst) {
     return await Promise.all(list)
 }
 
-// Recursivly remove file and directory.
+/**
+ * Recursivly remove file and directory.
+ * @param {String} path 
+ */
 async function rmrf(path) {
     // Try to remove as file
     try { return await remove(path) }
@@ -136,4 +199,4 @@ async function rmrf(path) {
 }
 
 // Export all
-export { dir, read, write, url, remove, mkdir, rmdir, copy, copyDir, rmrf, Path }
+export { each, dir, read, write, url, remove, mkdir, rmdir, copy, copyDir, rmrf, Path }
