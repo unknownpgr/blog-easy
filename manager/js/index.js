@@ -12,16 +12,16 @@ $(document).ready(async function () {
         const preserveList = preserveStr
             .replace(/\r/g, '')                                         // \r\n => \n
             .split('\n')                                                // Line split
-            .map(dirfy)                                                     // Beautify
+            .map(dirfy)                                                 // Beautify
             .filter(line => !line.startsWith('//') && line.length > 0)  // Remove annotations
 
         [   // Default preserve files
             'preserve.txt',
-            'EasyBlog',
+            'server',
             'manager',
             'skin',
             'post',
-            'Start.bat',
+            'start.bat',
             'system'
         ]
             .map(dirfy)
@@ -88,13 +88,23 @@ $(document).ready(async function () {
 
     // Sync post
     var blogConfig = await config('/system/config.json')
-    blogConfig.posts = (await Promise.all((await dir('/post')).map(async (post) => await read(Path.join(post.path, 'meta.json')))))
-        .sort((a, b) => {
+    blogConfig.posts = (await Promise.all((await dir('/post'))              // List all item in /post
+        .filter(file => file.isDirectory)                                   // Get directories
+        .map(async post => await read(Path.join(post.path, 'meta.json'))))) // Get meta file
+        .sort((a, b) => {                                                   // Sort by date
             if (a.date > b.date) return -1
             if (b.date > a.date) return 1
             return 0
         })
     blogConfig.update()
 
-    // Update post list
+    // Update post time list for client use.
+    const listCount = 10;
+    for (var i = 0; i < blogConfig.posts.length; i += listCount) {
+        var currentList = []
+        for (var j = i; j < i + listCount && j < blogConfig.posts.length; j++) {
+            currentList.push(blogConfig.posts[j])
+        }
+        write(`/post/{posts_${i}_${i + listCount}}`, JSON.stringify(currentList))
+    }
 });

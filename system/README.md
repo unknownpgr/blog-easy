@@ -125,5 +125,7 @@ Server Layer에서 제공하는 기능을 바탕으로, 필요한 모든 기능�
 - 추후 적용을 위하여 Webpack, Babel등 Bundler 공부
 - 자바스크립트 파일들 ES6로 리팩토링
 - Renderer 테스트를 위한 포스트 작성 구현
-- 임시 default skin과 
+- 임시 default skin 구현 시작
 - Renderer 구현 시작
+#### 04 /07
+- 서버 구조 약간 수정

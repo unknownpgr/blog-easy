@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Newtonsoft.Json;
 
-namespace EasyBlog
+namespace BlogServer
 {
     class HttpServer
     {
@@ -77,6 +77,13 @@ namespace EasyBlog
                     Dictionary<string, string> query = ParseQuery(req);
                     string localPath = query.ContainsKey("path") ? ConvertPath(query["path"]) : "NULL";
                     Console.WriteLine("API : " + apiName + "\t" + "PATH : " + localPath);
+
+                    // Debug
+                    if (true)
+                    {
+                        foreach (string key in query.Keys) Console.WriteLine(key + "\t: " + query[key]);
+                    }
+
                     switch (apiName)
                     {
                         // List given directory
@@ -98,10 +105,6 @@ namespace EasyBlog
 
                         // Write file to local
                         case "write":
-                            foreach(string key in query.Keys)
-                            {
-                                Console.WriteLine(key);
-                            }
                             File.WriteAllText(localPath, query["content"], Encoding.UTF8);
                             res.Response();
                             break;
@@ -261,9 +264,9 @@ namespace EasyBlog
             else
             {
                 FileInfo fi = new FileInfo(path);
-                long length =fi.Length;
+                long length = fi.Length;
 
-                switch (fi.Extension.Replace(".",""))
+                switch (fi.Extension.Replace(".", ""))
                 {
                     case "html":
                         res.ContentType = "text/html";
@@ -293,7 +296,8 @@ namespace EasyBlog
                         res.ContentType = "image/png";
                         break;
 
-                    default: res.ContentType = "application/*";
+                    default:
+                        res.ContentType = "application/*";
                         break;
                 }
                 res.ContentEncoding = Encoding.UTF8;

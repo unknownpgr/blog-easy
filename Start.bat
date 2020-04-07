@@ -1,1 +1,1 @@
-.\EasyBlog\EasyBlog\bin\Debug\EasyBlog.exe
+.\server\Server\bin\Debug\BlogServer.exe
