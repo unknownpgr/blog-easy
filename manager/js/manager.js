@@ -3,13 +3,13 @@ import { dir, read, Path, write, mkdir, each, remove, exists, copyDir, rmrf, cop
 import { config } from '../../system/config.js';
 
 //================================================================
-//  Singleton blog config
+//  Singleton blog configuration
 //================================================================
 
-let _blogConfig;
-async function blogConfig() {
-    if (!_blogConfig) _blogConfig = await config('/system/config.json')
-    return _blogConfig
+let _config_;
+async function getConfig() {
+    if (!_config_) _config_ = await config('/system/config.json')
+    return _config_
 }
 
 //================================================================
@@ -131,7 +131,7 @@ async function updatePostList() {
     }, [])
 
     // Update post list file to 
-    const listCount = (await blogConfig()).POST_LIST_COUNT;
+    const listCount = (await getConfig()).POST_LIST_COUNT;
     for (var i = 0; i < posts.length; i += listCount) {
         var currentList = []
         for (var j = i; j < i + listCount && j < posts.length; j++) {
@@ -164,11 +164,11 @@ async function updatePostList() {
  */
 async function applySkin(skinPath) {
 
-    // Get blogConfig
-    const blogConfig = await blogConfig()
+    // Get config
+    const config = await getConfig()
 
     // Get current skin path
-    if (!skinPath) skinPath = blogConfig.skinPath
+    if (!skinPath) skinPath = config.skinPath
 
     /**
      * Remove all items in root directory except files listed in /system/preserve.txt
@@ -176,7 +176,7 @@ async function applySkin(skinPath) {
     async function clearRoot() {
         const dirfy = str => str.trim().toLowerCase()
 
-        const preserveList = blogConfig.preserve;
+        const preserveList = config.preserve;
         [   // Default preserve files.
             // It is hard-coded because it is very important.
             'manager',
@@ -190,7 +190,7 @@ async function applySkin(skinPath) {
             .forEach(x => preserveList.push(x))
 
         await each(dir('/'), async path => {
-            if (preserveList.indexOf(dirfy(path.name)) < 0) await rmrf('/' + file.name)
+            if (preserveList.indexOf(dirfy(path.name)) < 0) await rmrf('/' + path.name)
         })
     }
 
@@ -200,8 +200,8 @@ async function applySkin(skinPath) {
 
         await clearRoot();
         await copyDir(skinPath, '/');
-        blogConfig.skinPath = skinPath;
-        await blogConfig.update();
+        config.skinPath = skinPath;
+        await config.update();
         alert('Skin apply success')
     } catch (e) {
         console.log(e)

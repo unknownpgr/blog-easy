@@ -1,11 +1,1 @@
-﻿{
-    "title": "GITHUB BLOG",
-    "POST_LIST_COUNT": 5,
-    "skinPath": "/skin/default",
-    "preserve": [
-        ".gitignore",
-        ".gitattributes",
-        ".git",
-        "README.md"
-    ]
-}
+﻿{"title":"GITHUB BLOG","POST_LIST_COUNT":5,"skinPath":"/skin/default","preserve":[".gitignore",".gitattributes",".git","README.md","manager","post","server","skin","system","start.bat","manager","post","server","skin","system","start.bat"]}
