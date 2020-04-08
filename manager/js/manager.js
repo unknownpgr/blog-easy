@@ -32,6 +32,7 @@ async function syncPostMeta(directory) {
         (await dir(directory)).map(path => {
             if (path.path.indexOf('content') > 0) contentFile = path.name
         })
+        metaData.contentFile = contentFile
     }
     if (typeof metaData.tags == 'string') metaData.tags = metaData.tags.split(',').map(x => x.trim())
 
@@ -63,7 +64,7 @@ async function writePost(title, content, tags) {
     await updatePost()
 }
 
-async function updatePost(updateMeta = false) {
+async function updatePost() {
     // Sync post
     const blogConfig = await config('/system/config.json')
 
