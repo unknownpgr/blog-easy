@@ -138,11 +138,11 @@ Server Layer에서 제공하는 기능을 바탕으로, 필요한 모든 기능�
 #### 04 / 08
 - Path exsitency check 구현
 - Skin apply 구현
-- Viewer 구현 시작
+- Viewer 구현 시작 - html전체 치환 방법으로 변환하여 구현 - 완벽하게 작동함.
 - Annotation(documentation) 추가
+- preserve.txt config에 통합
+- meta file에 파일 이름(content.txt, content.md 등) 포함하게 고침
 
 #### ToDo
 - 가능하다면, 클래스 이름 전부 config에서 가져오도록 리팩토링.
 - 파일 기본 이름 등도 마찬가지.
-- preserve.txt도 config로 옮긴다.
-- meta file에 파일 이름(content.txt, content.md 등) 포함하게 고치기
