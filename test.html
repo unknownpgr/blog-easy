@@ -6,7 +6,7 @@
 
 <body>
     <script>
-        $.ajax('/system/os.js', {
+        $.ajax('./system/os.js', {
             type: 'HEAD',
             success: () => alert("SUCCESS"),
             error: () => alert("FAIL")
