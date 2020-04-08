@@ -95,10 +95,10 @@ Server Layer에서 제공하는 기능을 바탕으로, 필요한 모든 기능�
 - .blog_postListTag : 태그들의 리스트
 #### On Post
 - .blog_postTitle : 현재 포스트의 제목
-- .blog_postBody : 현재 포스트의 내용
+- .blog_postContent : 현재 포스트의 내용
 - .blog_postTime : 현재 포스트 작성 시간
-- .blog_postID : 현재 포스트의 ID
 - .blog_postTags : 현재 포스트의 태그들
+
 - .blog_previousPost : 이전 포스트. href가 설정된 a가 삽입됨.
 - .blog_nextPost : 다음 포스트. 마찬가지.
 
@@ -120,7 +120,7 @@ Server Layer에서 제공하는 기능을 바탕으로, 필요한 모든 기능�
 #### 03/25 ~ 04 / 05
 - 기본적인 틀 결정
 - 로컬에서 작동할 서버 개발 완료
-- 서버와 통신하는 자바스크립트파일 os.js개발 완료 (JQuery 사용, Ajax기반)
+- 서버와 통신하는 자바스크립트파일 os.js개발 (JQuery 사용, Ajax기반)
 
 #### 04 / 06
 - 모듈 작성을 위한 CommonJS, AMD, ES6 방법 등 공부
@@ -137,4 +137,12 @@ Server Layer에서 제공하는 기능을 바탕으로, 필요한 모든 기능�
 
 #### 04 / 08
 - Path exsitency check 구현
-- 
+- Skin apply 구현
+- Viewer 구현 시작
+- Annotation(documentation) 추가
+
+#### ToDo
+- 가능하다면, 클래스 이름 전부 config에서 가져오도록 리팩토링.
+- 파일 기본 이름 등도 마찬가지.
+- preserve.txt도 config로 옮긴다.
+- meta file에 파일 이름(content.txt, content.md 등) 포함하게 고치기

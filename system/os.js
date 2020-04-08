@@ -79,7 +79,7 @@ async function api(apiName, path, content = '') {
         'path': Path.absolute(path),
         'content': content
     });
-    console.log(apiName, path, content, res)
+    // console.log(apiName, path, content, res)
     if (res.status == 'error') throw new Error(res.message);
     else return res.content;
 }
@@ -89,7 +89,8 @@ async function api(apiName, path, content = '') {
 //================================================================
 
 /**
- * List directory of given path
+ * List directory of given path.
+ * Return dictionary of {name,path,isFile,isDir}
  * @param {String} path 
  */
 async function dir(path) {

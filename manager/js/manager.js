@@ -1,143 +1,93 @@
 import '../../system/jquery-3.4.1.min.js'
-import { dir, read, Path, write, mkdir, each, remove, exists, copyDir } from '../../system/os.js'
+import { dir, read, Path, write, mkdir, each, remove, exists, copyDir, rmrf, copy } from '../../system/os.js'
 import { config } from '../../system/config.js';
 
-$(document).ready(async function () {
+//================================================================
+//  Function definition
+//================================================================
 
-    //================================================================
-    //  Local server check
-    //================================================================
+/**
+ * Make string to directory name by decapitalizing and removing special characters.
+ * @param {String} str 
+ */
+function dirfy(str) {
+    return str
+        .toLowerCase()                              // Decapitalize
+        .replace(/[^a-z0-9]+/g, '_')                // Replace special characters to _
+        .replace(/(^[^a-z0-9]|[^a-z0-9]$)/g, '')    // Remove special characters at first and last.
+}
 
-    // You can check if server is alive by checking directory exists.
-    // Because http HEAD method cannot check directory existence.
-    var serverConnected = (await exists('/')).isDirectory;
-    if (!serverConnected) {
-        alert('Server is not opened yet.')
-        return;
-    }
+/**
+ * Sync meta file.
+ * @param {String} directory 
+ */
+async function syncPostMeta(directory) {
+    const metaPath = Path.join(directory, 'meta.json')
+    const metaData = await read(metaPath)
 
-    //================================================================
-    //  Function definition
-    //================================================================
-
-    /**
-     * Make string to directory name by decapitalizing and removing special characters.
-     * @param {String} str 
-     */
-    function dirfy(str) {
-        return str
-            .toLowerCase()                              // Decapitalize
-            .replace(/[^a-z0-9]+/g, '_')                // Replace special characters to _
-            .replace(/(^[^a-z0-9]|[^a-z0-9]$)/g, '')    // Remove special characters at first and last.
-    }
-
-    /**
-     * Generate meta file in given directory
-     * @param {String} directory 
-     * @param {String} title 
-     * @param {String} tags 
-     * @param {String, Date} date 
-     */
-    function writeMeta(directory, title, tags, date) {
-        var path = Path.join(directory, 'meta.json')
-        var meta = { title: title, date: date ? date : new Date(), tags: tags, path: directory }
-        meta = JSON.stringify(meta)
-        return write(path, meta)
-    }
-
-    /**
-     * Make a post with given data.
-     * @param {String} title 
-     * @param {String} content 
-     * @param {String} tags 
-     */
-    async function writePost(title, content, tags) {
-        if (!title || title.length == 0) throw new Error("Title cannot be empty.")
-
-        const dirName = dirfy(title)
-        var directory = Path.join('/post', dirName)
-
-        var postExists = false
-        try {
-            await dir(directory)
-            postExists = true
-        } catch{ }
-        if (postExists) throw new Error('Post with same title already exists.')
-
-        var contentFile = Path.join(directory, 'content.txt')
-
-        await mkdir(directory)
-        return Promise.all([
-            writeMeta(directory, title, tags),
-            write(contentFile, content)])
-    }
-
-    //================================================================
-    //  Show skin list
-    //================================================================
-
-    // Get skin list
-    (async () => {
-        var skinListTag = $('#skinList')
-        skinListTag.html('Loading...')
-        var skinList = ''
-        await each(dir('/skin'), async path => {
-            if (path.isDirectory) skinList +=
-                `<li>
-                    <a href="${Path.join(path.path, 'index.html')}">${path.name}</a>
-                    <button onclick="applySkin(${path.path})"> Apply this skin </button>
-                </li>`
+    // Fill property
+    if (!metaData.tags) metaData.tags = []
+    if (!metaData.contentFile) {
+        let contentFile;
+        (await dir(directory)).map(path => {
+            if (path.path.indexOf('content') > 0) contentFile = path.name
         })
-        skinListTag.html(skinList)
-    })()
+    }
+    if (typeof metaData.tags == 'string') metaData.tags = metaData.tags.split(',').map(x => x.trim())
 
-    //================================================================
-    //  Post write callback
-    //================================================================
+    await write(metaPath, JSON.stringify(metaData))
+    await copy('/view.html', Path.join(directory, 'view.html'))
+    return metaData
+}
 
-    // Add post write callback
-    $('#postWrite').click(async () => {
-        var title = $('#postTitle').val()
-        var content = $('#postContent').val()
-        var tags = $('#postTags').val()
+/**
+ * Make a post with given data.
+ * @param {String} title 
+ * @param {String} content 
+ * @param {String} tags 
+ */
+async function writePost(title, content, tags) {
+    if (!title || title.length == 0) throw new Error("Title cannot be empty.")
 
-        try { await writePost(title, content, tags); }
-        catch (e) {
-            alert('Post failed: ' + e);
-            console.log(e);
-        }
-    })
+    const postDir = Path.join('/post', dirfy(title))
+    const postExists = await exists(postDir)
+    if (postExists.exists) throw new Error('Post with same name alread exists.')
 
-    //================================================================
-    //  Post sync
-    //================================================================
+    const contentPath = Path.join(postDir, 'content.txt')
+    const metaPath = Path.join(postDir, 'meta.json')
+    const metaData = { title: title, date: new Date(), tags: tags, path: postDir }
 
+    await mkdir(postDir)
+    await write(metaPath, JSON.stringify(metaData))
+    await write(contentPath, content)
+    await updatePost()
+}
+
+async function updatePost(updateMeta = false) {
     // Sync post
     const blogConfig = await config('/system/config.json')
 
+    // List of post and tags
     var posts = []
     var tags = []
 
     await each(dir('/post'), async post => {
 
-        // Remove existing files
+        // Remove existing list files
         if (post.isFile) return remove(post.path)
+        else {
+            // We can modify list here because javascript is thread-safe.
 
-        // Read meta file
-        var meta = await read(Path.join(post.path, 'meta.json'))
+            // Read meta file
+            const metaData = await syncPostMeta(post.path)
 
-        // We can modify list here because javascript is thread-safe.
+            // Update post list
+            posts.push(metaData)
 
-        // Update post list
-        posts.push(meta)
-
-        // Update tag list. (Although js is thread-safe, we cannot check duplication here.)
-        meta.tags
-            .split(',')
-            .forEach(e => tags.push(e))
-
-        // Update meta file(optional)
-        await writeMeta(post.path, meta.title, meta.tags, meta.date)
+            // Update tag list. (Although js is thread-safe, we cannot check duplication here.)
+            console.log(metaData)
+            metaData.tags.forEach(e => tags.push(e))
+        }
     })
 
     // Sort posts by date
@@ -170,12 +120,12 @@ $(document).ready(async function () {
     var tagDict = {}
     tags.forEach(tag => tagDict[tag] = [])
     posts.forEach(post => {
-        post.tags.split(',').forEach(tag => tagDict[tag.trim()].push(post))
+        post.tags.forEach(tag => tagDict[tag.trim()].push(post))
     })
     for (var tag in tagDict) {
         write(`/post/posts_tag_${tag}.json`, JSON.stringify(tagDict[tag]))
     }
-});
+}
 
 /**
  * Remove all items in root directory except files listed in /system/preserve.txt
@@ -189,7 +139,7 @@ async function clearRoot() {
         .replace(/\r/g, '')                                         // \r\n => \n
         .split('\n')                                                // Line split
         .map(dirfy)                                                 // Beautify
-        .filter(line => !line.startsWith('//') && line.length > 0)  // Remove annotations
+        .filter(line => !line.startsWith('//') && line.length > 0); // Remove annotations
 
     [   // Default preserve files
         'manager',
@@ -208,6 +158,7 @@ async function clearRoot() {
     return Promise.all(removeList.map(file => rmrf('/' + file.name)))
 }
 
+
 /**
  * Skin apply callback function
  * @param {String} skinPath 
@@ -216,7 +167,75 @@ async function applySkin(skinPath) {
     try {
         await clearRoot()
         await copyDir(skinPath, '/')
+        await each(dir('/post'), async post => {
+            if (post.isFile) return
+            await copy('/view.html', Path.join(post.path, 'view.html'))
+        })
+        alert('Skin apply success')
     } catch (e) {
+        console.log(e)
         alert('Error occerred while applying skin : ' + e)
     }
 }
+
+window.applySkin = applySkin;
+
+$(document).ready(async function () {
+
+    //================================================================
+    //  Local server check
+    //================================================================
+
+    // You can check if server is alive by checking directory exists.
+    // Because http HEAD method cannot check directory existence.
+    var serverConnected = (await exists('/')).isDirectory;
+    if (!serverConnected) {
+        alert('Server is not opened yet.')
+        return;
+    }
+
+    //================================================================
+    //  Display skin list
+    //================================================================
+
+    // Get skin list
+    (async () => {
+        var skinListTag = $('#skinList')
+        skinListTag.html('Loading...')
+        var skinList = ''
+        await each(dir('/skin'), async path => {
+            if (path.isDirectory) skinList +=
+                `<li>
+                    <a href="${Path.join(path.path, 'index.html')}">${path.name}</a>
+                    <button onclick="applySkin('${path.path}')"> Apply this skin </button>
+                </li>`
+        })
+        skinListTag.html(skinList)
+    })()
+
+    //================================================================
+    //  Post write callback
+    //================================================================
+
+    // Add post write callback
+    $('#postWrite').click(async () => {
+        var title = $('#postTitle').val()
+        var content = $('#postContent').val()
+        var tags = $('#postTags').val()
+
+        try {
+            await writePost(title, content, tags);
+            alert('Post successfully posted.')
+        }
+        catch (e) {
+            alert('Post failed: ' + e);
+            console.log(e);
+        }
+    })
+
+    //================================================================
+    //  Post sync
+    //================================================================
+
+    updatePost()
+});

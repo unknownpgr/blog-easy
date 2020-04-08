@@ -1,4 +1,4 @@
-import { read, exists } from "./os.js";
+import { read, exists, Path } from "./os.js";
 import './jquery-3.4.1.min.js'
 
 window.myVar = 'ETSE'
@@ -102,9 +102,16 @@ $(document).ready(async function () {
         return innerHTML
     })
 
-    const pathSplit = location.href.split(/(\\|\/)/g)
-    const fileName = pathSplit.pop()
-    const postPath = pathSplit.pop()
+    // Post-related subsitution
+    const fullPath = new URL(location.href).pathname
+    const fileName = fullPath.split(/(\\|\/)/g).pop()
+    const postDir = fullPath.replace('view.html', '')
     if (fileName.toLowerCase() == 'view.html') {
+        const info = await read(Path.join(postDir, 'meta.json'))
+
+        subTxt('.blog_postTitle', info.title)
+        subTxt('.blog_postContent', read('content.txt'))
+        subTxt('.blog_postTags', info.tags.reduce((pre, cur) => pre + ',' + cur), '')
+        subTxt('.blog_postTime', new Date(info.date))
     }
 })
