@@ -73,6 +73,12 @@ $(document).ready(async function () {
         }
     }
 
+    /**
+     * Get attribute of given element.
+     * @param {HTMLElement} element 
+     * @param {String} attr 
+     * @param {*} defaultValue 
+     */
     function getAttr(element, attr, defaultValue = undefined) {
         if (!element.hasAttribute(attr)) return defaultValue
         return element.getAttribute(attr)
@@ -95,4 +101,10 @@ $(document).ready(async function () {
         list.forEach(tag => innerHTML += `<li><a href="/view/${tag}/view.html">${tag}</a></li>`)
         return innerHTML
     })
+
+    const pathSplit = location.href.split(/(\\|\/)/g)
+    const fileName = pathSplit.pop()
+    const postPath = pathSplit.pop()
+    if (fileName.toLowerCase() == 'view.html') {
+    }
 })

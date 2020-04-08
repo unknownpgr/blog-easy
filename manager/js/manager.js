@@ -1,5 +1,5 @@
 import '../../system/jquery-3.4.1.min.js'
-import { dir, read, Path, write, mkdir, each, remove, exists } from '../../system/os.js'
+import { dir, read, Path, write, mkdir, each, remove, exists, copyDir } from '../../system/os.js'
 import { config } from '../../system/config.js';
 
 $(document).ready(async function () {
@@ -19,37 +19,6 @@ $(document).ready(async function () {
     //================================================================
     //  Function definition
     //================================================================
-
-    /**
-     * Remove all items in root directory except files listed in /system/preserve.txt
-     */
-    async function clearRoot() {
-        const dirfy = str => str.trim().toLowerCase()
-
-        const preserveFile = '/system/preserve.txt'
-        const preserveStr = await read(preserveFile)
-        const preserveList = preserveStr
-            .replace(/\r/g, '')                                         // \r\n => \n
-            .split('\n')                                                // Line split
-            .map(dirfy)                                                 // Beautify
-            .filter(line => !line.startsWith('//') && line.length > 0)  // Remove annotations
-
-        [   // Default preserve files
-            'manager',
-            'post',
-            'server',
-            'skin',
-            'system',
-            'start.bat'
-        ]
-            .map(dirfy)
-            .forEach(x => preserveList.push(x))
-
-        const fileList = await dir('/')
-        const removeList = fileList
-            .filter(file => preserveList.indexOf(file.name.toLowerCase()) < 0)
-        return Promise.all(removeList.map(file => rmrf('/' + file.name)))
-    }
 
     /**
      * Make string to directory name by decapitalizing and removing special characters.
@@ -113,7 +82,11 @@ $(document).ready(async function () {
         skinListTag.html('Loading...')
         var skinList = ''
         await each(dir('/skin'), async path => {
-            if (path.isDirectory) skinList += `<li><a href="${Path.join(path.path, 'index.html')}">${path.name}</a></li>`
+            if (path.isDirectory) skinList +=
+                `<li>
+                    <a href="${Path.join(path.path, 'index.html')}">${path.name}</a>
+                    <button onclick="applySkin(${path.path})"> Apply this skin </button>
+                </li>`
         })
         skinListTag.html(skinList)
     })()
@@ -203,3 +176,47 @@ $(document).ready(async function () {
         write(`/post/posts_tag_${tag}.json`, JSON.stringify(tagDict[tag]))
     }
 });
+
+/**
+ * Remove all items in root directory except files listed in /system/preserve.txt
+ */
+async function clearRoot() {
+    const dirfy = str => str.trim().toLowerCase()
+
+    const preserveFile = '/system/preserve.txt'
+    const preserveStr = await read(preserveFile)
+    const preserveList = preserveStr
+        .replace(/\r/g, '')                                         // \r\n => \n
+        .split('\n')                                                // Line split
+        .map(dirfy)                                                 // Beautify
+        .filter(line => !line.startsWith('//') && line.length > 0)  // Remove annotations
+
+    [   // Default preserve files
+        'manager',
+        'post',
+        'server',
+        'skin',
+        'system',
+        'start.bat'
+    ]
+        .map(dirfy)
+        .forEach(x => preserveList.push(x))
+
+    const fileList = await dir('/')
+    const removeList = fileList
+        .filter(file => preserveList.indexOf(file.name.toLowerCase()) < 0)
+    return Promise.all(removeList.map(file => rmrf('/' + file.name)))
+}
+
+/**
+ * Skin apply callback function
+ * @param {String} skinPath 
+ */
+async function applySkin(skinPath) {
+    try {
+        await clearRoot()
+        await copyDir(skinPath, '/')
+    } catch (e) {
+        alert('Error occerred while applying skin : ' + e)
+    }
+}
