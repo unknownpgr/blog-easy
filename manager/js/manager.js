@@ -3,6 +3,16 @@ import { dir, read, Path, write, mkdir, each, remove, exists, copyDir, rmrf, cop
 import { config } from '../../system/config.js';
 
 //================================================================
+//  Singleton blog config
+//================================================================
+
+let _blogConfig;
+async function blogConfig() {
+    if (!_blogConfig) _blogConfig = await config('/system/config.json')
+    return _blogConfig
+}
+
+//================================================================
 //  Function definition
 //================================================================
 
@@ -23,7 +33,7 @@ function dirfy(str) {
  * Viewer is independent to meta file.
  * @param {String} directory 
  */
-async function syncPost(directory) {
+async function updatePostMeta(directory) {
     const metaPath = Path.join(directory, 'meta.json')
     const metaData = await config(metaPath)
     const viewPath = Path.join(directory, 'view.html')
@@ -50,13 +60,11 @@ async function syncPost(directory) {
 /**
  * Sync every post
  */
-async function syncAll() {
+async function updatePostAll() {
     each(dir('/post'), async path => {
-        if (path.isDirectory) syncPost(path.path)
+        if (path.isDirectory) updatePostMeta(path.path)
     })
 }
-
-syncAll()
 
 /**
  * Make a post with given data.
@@ -78,7 +86,7 @@ async function writePost(title, content, tags) {
     await mkdir(postDir)
     await write(metaPath, JSON.stringify(metaData))
     await write(contentPath, content)
-    await syncPost(postDir)
+    await updatePostMeta(postDir)
     await updatePostList()
 }
 
@@ -86,8 +94,6 @@ async function writePost(title, content, tags) {
  * Update post list such as post time list and post tag list.
  */
 async function updatePostList() {
-    // Sync post
-    const blogConfig = await config('/system/config.json')
 
     // List of post and tags
     var posts = []
@@ -125,7 +131,7 @@ async function updatePostList() {
     }, [])
 
     // Update post list file to 
-    const listCount = blogConfig.POST_LIST_COUNT;
+    const listCount = (await blogConfig()).POST_LIST_COUNT;
     for (var i = 0; i < posts.length; i += listCount) {
         var currentList = []
         for (var j = i; j < i + listCount && j < posts.length; j++) {
@@ -157,6 +163,8 @@ async function updatePostList() {
  * @param {String} skinPath 
  */
 async function applySkin(skinPath) {
+
+    if (!skinPath) skinPath = (await blogConfig()).skinPath
 
     /**
      * Remove all items in root directory except files listed in /system/preserve.txt
@@ -193,8 +201,10 @@ async function applySkin(skinPath) {
         if (!(await exists(Path.join(skinPath, 'index.html')))) throw new Error("This skin does not contain index.html")
         if (!(await exists(Path.join(skinPath, 'view.html')))) throw new Error("This skin does not contain view.html")
 
-        await clearRoot()
-        await copyDir(skinPath, '/')
+        await clearRoot();
+        await copyDir(skinPath, '/');
+        (await blogConfig()).skinPath = skinPath;
+        await (await blogConfig()).update();
         alert('Skin apply success')
     } catch (e) {
         console.log(e)
@@ -210,7 +220,7 @@ $(document).ready(async function () {
     //  Local server check
     //================================================================
 
-    // You can check if server is alive by checking directory exists.
+    // You can check if server is alive by checking root directory exists.
     // Because http HEAD method cannot check directory existence.
     var serverConnected = (await exists('/')).isDirectory;
     if (!serverConnected) {
@@ -255,5 +265,16 @@ $(document).ready(async function () {
             alert('Post failed: ' + e);
             console.log(e);
         }
+    })
+
+    //================================================================
+    //  Force sync callback
+    //================================================================
+    $('#forceSync').click(async () => {
+        await Promise.all([
+            updatePostList(),
+            updatePostAll(),
+            applySkin()])
+        alert('Synchronzie finished.')
     })
 });
