@@ -1,23 +1,30 @@
 ﻿<html>
 
 <head>
-    <title class="blog_postTitle"></title>
-    <script src="/system/blog.js" type="module"></script>
+    <script type="module">
+        import { init } from '/system/blog.js'
+
+        const viewerFile = '/view.html'
+        const request = new XMLHttpRequest();
+        try {
+            request.onreadystatechange = () => {
+                if (request.readyState == 4) {
+                    const val = request.responseText;
+                    document.getElementsByTagName('html')[0].innerHTML = val;
+                    init()
+                }
+            }
+            request.open("GET", viewerFile, true);
+            request.send();
+        }
+        catch (e) {
+            alert("XHR Failed");
+        }
+    </script>
 </head>
 
 <body>
-    <div>
-        <strong><span class="blog_postTitle"></span></strong>| <span class="blog_postTime"></span>
-    </div>
-    <div>
-        =---------------------------------------------------------------------=
-    </div>
-    <div class="blog_postContent">
-    </div>
-    <div>
-        =---------------------------------------------------------------------=
-    </div>
-    <div class="blog_postTags"></div>
+
 </body>
 
 </html>

@@ -19,11 +19,14 @@ function dirfy(str) {
 
 /**
  * Sync meta file.
+ * Do not use this function to update viewer.
+ * Viewer is independent to meta file.
  * @param {String} directory 
  */
-async function syncPostMeta(directory) {
+async function syncPost(directory) {
     const metaPath = Path.join(directory, 'meta.json')
-    const metaData = await read(metaPath)
+    const metaData = await config(metaPath)
+    const viewPath = Path.join(directory, 'view.html')
 
     // Fill property
     if (!metaData.tags) metaData.tags = []
@@ -36,10 +39,24 @@ async function syncPostMeta(directory) {
     }
     if (typeof metaData.tags == 'string') metaData.tags = metaData.tags.split(',').map(x => x.trim())
 
-    await write(metaPath, JSON.stringify(metaData))
-    await copy('/view.html', Path.join(directory, 'view.html'))
+    // Set viewer file
+    if (!(await exists(viewPath)) || true) await copy('/system/template_view.html', viewPath)
+
+    // Save
+    await metaData.update()
     return metaData
 }
+
+/**
+ * Sync every post
+ */
+async function syncAll() {
+    each(dir('/post'), async path => {
+        if (path.isDirectory) syncPost(path.path)
+    })
+}
+
+syncAll()
 
 /**
  * Make a post with given data.
@@ -61,10 +78,14 @@ async function writePost(title, content, tags) {
     await mkdir(postDir)
     await write(metaPath, JSON.stringify(metaData))
     await write(contentPath, content)
-    await updatePost()
+    await syncPost(postDir)
+    await updatePostList()
 }
 
-async function updatePost() {
+/**
+ * Update post list such as post time list and post tag list.
+ */
+async function updatePostList() {
     // Sync post
     const blogConfig = await config('/system/config.json')
 
@@ -80,13 +101,12 @@ async function updatePost() {
             // We can modify list here because javascript is thread-safe.
 
             // Read meta file
-            const metaData = await syncPostMeta(post.path)
+            const metaData = await read(Path.join(post.path, 'meta.json'))
 
             // Update post list
             posts.push(metaData)
 
             // Update tag list. (Although js is thread-safe, we cannot check duplication here.)
-            console.log(metaData)
             metaData.tags.forEach(e => tags.push(e))
         }
     })
@@ -129,49 +149,52 @@ async function updatePost() {
 }
 
 /**
- * Remove all items in root directory except files listed in /system/preserve.txt
- */
-async function clearRoot() {
-    const dirfy = str => str.trim().toLowerCase()
-
-    const preserveFile = '/system/preserve.txt'
-    const preserveStr = await read(preserveFile)
-    const preserveList = preserveStr
-        .replace(/\r/g, '')                                         // \r\n => \n
-        .split('\n')                                                // Line split
-        .map(dirfy)                                                 // Beautify
-        .filter(line => !line.startsWith('//') && line.length > 0); // Remove annotations
-
-    [   // Default preserve files
-        'manager',
-        'post',
-        'server',
-        'skin',
-        'system',
-        'start.bat'
-    ]
-        .map(dirfy)
-        .forEach(x => preserveList.push(x))
-
-    const fileList = await dir('/')
-    const removeList = fileList
-        .filter(file => preserveList.indexOf(file.name.toLowerCase()) < 0)
-    return Promise.all(removeList.map(file => rmrf('/' + file.name)))
-}
-
-
-/**
- * Skin apply callback function
+ * Apply skin in given path.
+ * It does:
+ * 1. Check if skin is proper
+ * 2. Remove all files in root directoty
+ * 3. Copy skin dir to root
  * @param {String} skinPath 
  */
 async function applySkin(skinPath) {
+
+    /**
+     * Remove all items in root directory except files listed in /system/preserve.txt
+     */
+    async function clearRoot() {
+        const dirfy = str => str.trim().toLowerCase()
+
+        const preserveFile = '/system/preserve.txt'
+        const preserveStr = await read(preserveFile)
+        const preserveList = preserveStr
+            .replace(/\r/g, '')                                         // \r\n => \n
+            .split('\n')                                                // Line split
+            .map(dirfy)                                                 // Beautify
+            .filter(line => !line.startsWith('//') && line.length > 0); // Remove annotations
+
+        [   // Default preserve files
+            'manager',
+            'post',
+            'server',
+            'skin',
+            'system',
+            'start.bat'
+        ]
+            .map(dirfy)
+            .forEach(x => preserveList.push(x))
+
+        const fileList = await dir('/')
+        const removeList = fileList
+            .filter(file => preserveList.indexOf(file.name.toLowerCase()) < 0)
+        return Promise.all(removeList.map(file => rmrf('/' + file.name)))
+    }
+
     try {
+        if (!(await exists(Path.join(skinPath, 'index.html')))) throw new Error("This skin does not contain index.html")
+        if (!(await exists(Path.join(skinPath, 'view.html')))) throw new Error("This skin does not contain view.html")
+
         await clearRoot()
         await copyDir(skinPath, '/')
-        await each(dir('/post'), async post => {
-            if (post.isFile) return
-            await copy('/view.html', Path.join(post.path, 'view.html'))
-        })
         alert('Skin apply success')
     } catch (e) {
         console.log(e)
@@ -233,10 +256,4 @@ $(document).ready(async function () {
             console.log(e);
         }
     })
-
-    //================================================================
-    //  Post sync
-    //================================================================
-
-    updatePost()
 });

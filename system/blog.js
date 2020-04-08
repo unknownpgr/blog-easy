@@ -1,11 +1,6 @@
 import { read, exists, Path } from "./os.js";
 import './jquery-3.4.1.min.js'
 
-window.myVar = 'ETSE'
-
-
-// All the variables and functions, do not pollute global scope.
-
 // Blog configuration
 let blogConfig;
 
@@ -52,7 +47,10 @@ async function getTagList() {
     return await read('/post/posts_tags.json')
 }
 
-$(document).ready(async function () {
+let initFlag = false;
+async function init() {
+    initFlag = true
+
     // load blog configuration
     blogConfig = await read('/system/config.json')
 
@@ -110,8 +108,12 @@ $(document).ready(async function () {
         const info = await read(Path.join(postDir, 'meta.json'))
 
         subTxt('.blog_postTitle', info.title)
-        subTxt('.blog_postContent', read('content.txt'))
+        subTxt('.blog_postContent', read(info.contentFile))
         subTxt('.blog_postTags', info.tags.reduce((pre, cur) => pre + ',' + cur), '')
         subTxt('.blog_postTime', new Date(info.date))
     }
-})
+}
+
+$(document).ready(init)
+
+export { init, getPostTimeList, getTagList }
