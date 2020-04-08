@@ -198,5 +198,34 @@ async function rmrf(path) {
     }
 }
 
+/**
+ * Check if given file exists.
+ * Returns promise that returns dictionary of {exists, isFile,isDirectory}.
+ * Directory existence check is only available when server is opened.
+ * @param {String} path 
+ */
+function exists(path) {
+    return new Promise((res, rej) => {
+        $.ajax({
+            url: path,
+            type: 'HEAD',
+            error: () => rej(),
+            success: () => res({
+                isFile: true,
+                isDirectory: false,
+                exist: true
+            })
+        });
+    })
+        .catch(() => api('exists', path))
+        .catch(() => {
+            return {
+                isFile: false,
+                isDirectory: false,
+                exist: false
+            }
+        })
+}
+
 // Export all
-export { each, dir, read, write, url, remove, mkdir, rmdir, copy, copyDir, rmrf, Path }
+export { exists, each, dir, read, write, url, remove, mkdir, rmdir, copy, copyDir, rmrf, Path }

@@ -1,5 +1,5 @@
 import '../../system/jquery-3.4.1.min.js'
-import { dir, read, Path, write, mkdir, each, remove } from '../../system/os.js'
+import { dir, read, Path, write, mkdir, each, remove, exists } from '../../system/os.js'
 import { config } from '../../system/config.js';
 
 $(document).ready(async function () {
@@ -8,10 +8,9 @@ $(document).ready(async function () {
     //  Local server check
     //================================================================
 
-    var serverConnected = false;
-    await dir('/')
-        .then(() => serverConnected = true)
-        .catch(() => serverConnected = false)
+    // You can check if server is alive by checking directory exists.
+    // Because http HEAD method cannot check directory existence.
+    var serverConnected = (await exists('/')).isDirectory;
     if (!serverConnected) {
         alert('Server is not opened yet.')
         return;
@@ -144,7 +143,7 @@ $(document).ready(async function () {
     const blogConfig = await config('/system/config.json')
 
     var posts = []
-    var tmpTagList = []
+    var tags = []
 
     await each(dir('/post'), async post => {
 
@@ -162,7 +161,7 @@ $(document).ready(async function () {
         // Update tag list. (Although js is thread-safe, we cannot check duplication here.)
         meta.tags
             .split(',')
-            .forEach(e => tmpTagList.push(e))
+            .forEach(e => tags.push(e))
 
         // Update meta file(optional)
         await writeMeta(post.path, meta.title, meta.tags, meta.date)
@@ -176,13 +175,10 @@ $(document).ready(async function () {
     })
 
     // Remove duplicated tags
-    blogConfig.tags = []
-    tmpTagList.forEach(t => {
-        if (blogConfig.tags.indexOf(t) < 0) blogConfig.tags.push(t)
-    })
-
-    // Write config to file
-    await blogConfig.update()
+    tags = tags.reduce((pre, cur) => {
+        if (pre.indexOf(cur) < 0) pre.push(cur);
+        return pre
+    }, [])
 
     // Update post list file to 
     const listCount = blogConfig.POST_LIST_COUNT;
@@ -195,11 +191,11 @@ $(document).ready(async function () {
     }
 
     // Update list of tags
-    write('/post/posts_tags.json', JSON.stringify(blogConfig.tags))
+    write('/post/posts_tags.json', JSON.stringify(tags))
 
     // Update list of posts by tag
     var tagDict = {}
-    blogConfig.tags.forEach(tag => tagDict[tag] = [])
+    tags.forEach(tag => tagDict[tag] = [])
     posts.forEach(post => {
         post.tags.split(',').forEach(tag => tagDict[tag.trim()].push(post))
     })

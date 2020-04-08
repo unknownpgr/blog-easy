@@ -67,6 +67,7 @@ namespace BlogServer
         private static void HandleRequest(HttpListenerRequest req, HttpListenerResponse res)
         {
             string urlPath = req.Url.AbsolutePath;
+            string httpMethod = req.HttpMethod;
 
             // API call
             if (urlPath == "/api" || urlPath.StartsWith("/api/"))
@@ -76,73 +77,16 @@ namespace BlogServer
                     string apiName = urlPath.Replace("/api/", "").Replace("/api", "").ToLower();
                     Dictionary<string, string> query = ParseQuery(req);
                     string localPath = query.ContainsKey("path") ? ConvertPath(query["path"]) : "NULL";
-                    Console.WriteLine("API : " + apiName + "\t" + "PATH : " + localPath);
 
                     // Debug
                     if (true)
                     {
+                        Console.WriteLine("API : " + apiName + "\t" + "PATH : " + localPath);
                         foreach (string key in query.Keys) Console.WriteLine(key + "\t: " + query[key]);
                     }
 
-                    switch (apiName)
-                    {
-                        // List given directory
-                        case "dir":
-                            List<Dictionary<string, string>> items = new List<Dictionary<string, string>>();
-                            DirectoryInfo di = new DirectoryInfo(localPath);
-                            foreach (FileInfo info in di.GetFiles()) items.Add(new Dictionary<string, string>()
-                            {
-                                ["name"] = info.Name,
-                                ["type"] = "file"
-                            });
-                            foreach (DirectoryInfo info in di.GetDirectories()) items.Add(new Dictionary<string, string>()
-                            {
-                                ["name"] = info.Name,
-                                ["type"] = "directory"
-                            });
-                            res.Response(items);
-                            break;
-
-                        // Write file to local
-                        case "write":
-                            File.WriteAllText(localPath, query["content"], Encoding.UTF8);
-                            res.Response();
-                            break;
-
-                        // Read url
-                        case "url":
-                            using (WebClient wc = new WebClient())
-                            using (StreamReader s = new StreamReader(wc.OpenRead(query["path"])))
-                            {
-                                string str = s.ReadToEnd();
-                                res.Response(str);
-                            }
-                            break;
-
-                        // Delete local file
-                        case "remove":
-                            //SetAttrNoraml(new DirectoryInfo(localPath));
-                            File.Delete(localPath);
-                            res.Response();
-                            break;
-
-                        // Create directory
-                        case "mkdir":
-                            Directory.CreateDirectory(localPath);
-                            res.Response();
-                            break;
-
-                        // Delete directory
-                        case "rmdir":
-                            Directory.Delete(localPath);
-                            res.Response();
-                            break;
-
-                        // Unregistered api
-                        default:
-                            res.Response(status: "error", message: "unregistered api call");
-                            break;
-                    }
+                    // Handle API
+                    HandleAPI(res, apiName, localPath, query);
                 }
                 catch (Exception e)
                 {
@@ -150,12 +94,93 @@ namespace BlogServer
                     res.Response(status: "error", message: e.Message + ":" + e.StackTrace);
                 }
             }
-            // Manager default path
-            else if (urlPath == "/manager/") res.SendFile(ConvertPath("/manager/index.html"));
-            // Default path
-            else if (urlPath == "" || urlPath == "/") res.Redirect("/manager/");
+
+            // This functions serves files. therefore it must 
+            else if (httpMethod != "HEAD")
+            {
+                // Manager default path
+                if (urlPath == "/manager/") res.SendFile(ConvertPath("/manager/index.html"), httpMethod);
+                // Default path
+                else if (urlPath == "" || urlPath == "/") res.Redirect("/manager/");
+
+            }
+
             // Send file
-            else res.SendFile(ConvertPath(urlPath));
+            else res.SendFile(ConvertPath(urlPath), httpMethod);
+        }
+
+        private static void HandleAPI(HttpListenerResponse res,string apiName, string localPath, Dictionary<string,string> query)
+        {
+            switch (apiName)
+            {
+                // List given directory
+                case "dir":
+                    List<Dictionary<string, string>> items = new List<Dictionary<string, string>>();
+                    DirectoryInfo di = new DirectoryInfo(localPath);
+                    foreach (FileInfo info in di.GetFiles()) items.Add(new Dictionary<string, string>()
+                    {
+                        ["name"] = info.Name,
+                        ["type"] = "file"
+                    });
+                    foreach (DirectoryInfo info in di.GetDirectories()) items.Add(new Dictionary<string, string>()
+                    {
+                        ["name"] = info.Name,
+                        ["type"] = "directory"
+                    });
+                    res.Response(items);
+                    break;
+
+                // Write file to local
+                case "write":
+                    File.WriteAllText(localPath, query["content"], Encoding.UTF8);
+                    res.Response();
+                    break;
+
+                // Read url
+                case "url":
+                    using (WebClient wc = new WebClient())
+                    using (StreamReader s = new StreamReader(wc.OpenRead(query["path"])))
+                    {
+                        string str = s.ReadToEnd();
+                        res.Response(str);
+                    }
+                    break;
+
+                // Delete local file
+                case "remove":
+                    //SetAttrNoraml(new DirectoryInfo(localPath));
+                    File.Delete(localPath);
+                    res.Response();
+                    break;
+
+                // Create directory
+                case "mkdir":
+                    Directory.CreateDirectory(localPath);
+                    res.Response();
+                    break;
+
+                // Delete directory
+                case "rmdir":
+                    Directory.Delete(localPath);
+                    res.Response();
+                    break;
+
+                case "exists":
+                    bool isFile = File.Exists(localPath);
+                    bool isDir = Directory.Exists(localPath);
+                    res.Response(new Dictionary<string, bool>
+                    {
+                        ["isFile"] = isFile,
+                        ["isDirectory"] = isDir,
+                        ["exists"] = isFile || isDir
+                    });
+                    break;
+
+                // Unregistered api
+                default:
+                    res.Response(status: "error", message: "unregistered api call");
+                    break;
+            }
         }
 
         private static void SetAttrNoraml(DirectoryInfo dir)
@@ -253,12 +278,17 @@ namespace BlogServer
             res.Close();
         }
 
-        public static async void SendFile(this HttpListenerResponse res, string path)
+        public static async void SendFile(this HttpListenerResponse res, string path, string httpMethod)
         {
             Console.WriteLine("Required file:" + path);
             if (!File.Exists(path))
             {
                 res.StatusCode = 404;
+                res.Close();
+            }
+            else if (httpMethod == "HEAD")
+            {
+                res.StatusCode = 200;
                 res.Close();
             }
             else
@@ -302,19 +332,21 @@ namespace BlogServer
                 }
                 res.ContentEncoding = Encoding.UTF8;
                 res.ContentLength64 = length;
-                using (FileStream fs = new FileStream(path, FileMode.Open))
-                using (Stream sw = res.OutputStream)
                 {
-                    byte[] buf = new byte[1024];
-                    int offset = 0;
-                    int len;
-                    while ((len = fs.ReadAsync(buf, 0, 1024).GetAwaiter().GetResult()) > 0)
+                    using (FileStream fs = new FileStream(path, FileMode.Open))
+                    using (Stream sw = res.OutputStream)
                     {
-                        offset += len;
-                        await sw.WriteAsync(buf, 0, len);
+                        byte[] buf = new byte[1024];
+                        int offset = 0;
+                        int len;
+                        while ((len = fs.ReadAsync(buf, 0, 1024).GetAwaiter().GetResult()) > 0)
+                        {
+                            offset += len;
+                            await sw.WriteAsync(buf, 0, len);
+                        }
                     }
+                    res.Close();
                 }
-                res.Close();
             }
         }
     }

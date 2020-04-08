@@ -1,0 +1,17 @@
+<html>
+
+<head>
+    <script src="./system/jquery-3.4.1.min.js"></script>
+</head>
+
+<body>
+    <script>
+        $.ajax('/system/os.js', {
+            type: 'HEAD',
+            success: () => alert("SUCCESS"),
+            error: () => alert("FAIL")
+        })
+    </script>
+</body>
+
+</html>
