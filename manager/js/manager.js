@@ -164,7 +164,11 @@ async function updatePostList() {
  */
 async function applySkin(skinPath) {
 
-    if (!skinPath) skinPath = (await blogConfig()).skinPath
+    // Get blogConfig
+    const blogConfig = await blogConfig()
+
+    // Get current skin path
+    if (!skinPath) skinPath = blogConfig.skinPath
 
     /**
      * Remove all items in root directory except files listed in /system/preserve.txt
@@ -172,15 +176,9 @@ async function applySkin(skinPath) {
     async function clearRoot() {
         const dirfy = str => str.trim().toLowerCase()
 
-        const preserveFile = '/system/preserve.txt'
-        const preserveStr = await read(preserveFile)
-        const preserveList = preserveStr
-            .replace(/\r/g, '')                                         // \r\n => \n
-            .split('\n')                                                // Line split
-            .map(dirfy)                                                 // Beautify
-            .filter(line => !line.startsWith('//') && line.length > 0); // Remove annotations
-
-        [   // Default preserve files
+        const preserveList = blogConfig.preserve;
+        [   // Default preserve files.
+            // It is hard-coded because it is very important.
             'manager',
             'post',
             'server',
@@ -191,10 +189,9 @@ async function applySkin(skinPath) {
             .map(dirfy)
             .forEach(x => preserveList.push(x))
 
-        const fileList = await dir('/')
-        const removeList = fileList
-            .filter(file => preserveList.indexOf(file.name.toLowerCase()) < 0)
-        return Promise.all(removeList.map(file => rmrf('/' + file.name)))
+        await each(dir('/'), async path => {
+            if (preserveList.indexOf(dirfy(path.name)) < 0) await rmrf('/' + file.name)
+        })
     }
 
     try {
@@ -203,8 +200,8 @@ async function applySkin(skinPath) {
 
         await clearRoot();
         await copyDir(skinPath, '/');
-        (await blogConfig()).skinPath = skinPath;
-        await (await blogConfig()).update();
+        blogConfig.skinPath = skinPath;
+        await blogConfig.update();
         alert('Skin apply success')
     } catch (e) {
         console.log(e)

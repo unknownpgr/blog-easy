@@ -1,1 +1,11 @@
-﻿{"title":"GITHUB BLOG","POST_LIST_COUNT":5,"skinPath":"/skin/default"}
+﻿{
+    "title": "GITHUB BLOG",
+    "POST_LIST_COUNT": 5,
+    "skinPath": "/skin/default",
+    "preserve": [
+        ".gitignore",
+        ".gitattributes",
+        ".git",
+        "README.md"
+    ]
+}

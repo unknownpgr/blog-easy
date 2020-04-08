@@ -1,5 +1,0 @@
-// Github-related
-.gitignore
-.gitattributes
-.git
-README.md
